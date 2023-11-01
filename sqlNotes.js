@@ -648,17 +648,30 @@ SQL CODE:
 
 
 
+        Knex ORM for postgres -
+                The important thing to remember is most anything we want to do has a raw query builder
+                -> such as, we must remember our injection prevention, knex does this for us auto, when not using raw
+                knex('tableName').select('*').whereRaw('id = ?', [req.params.id])
 
+        Sql injection prevention -
 
+            we should be testing all values before they make a server query, this will save so much server time and resources/money. But also
+                by checking values, we make sure there is nothing funny going into our query like potential injection
 
+                uuid validation - https://www.npmjs.com/package/uuid-validate
+                const validate = require('uuid-validate');
 
+                -> we can in general validate a uuid without specifying version, or we can specify. we can check a uuid version,
+                    validate('95ecc380-afe9-11e4-9b6c-751b66dd541e'); // => true
 
+                general validator - https://github.com/validatorjs/validator.js
+                -> this is an easy way to validate email format, password length, credit card format etc..
+                    npm i validator
+                    const validator = require('validator');
+                    validator.isEmail('foo@bar.com'); //=> true
 
-
-
-
-
-
+                after validating data is in the right format, we will want to make sure all usernames/email and strings are in all lowercase then
+                 we will want to trim all strings before putting them into the database. this is after we even trim on client side, for extra safety.
 
 
 

@@ -2,11 +2,14 @@ const express = require('express');
 const router = express.Router();
 /* GET home page. */
 const postgres = require('postgres');
+const {config} = require("dotenv");
 require('dotenv').config();
+const uuidValidate = require('uuid-validate');
+const validator = require('validator');
 
-let { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, ENDPOINT_ID } = process.env;
+let { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, ENDPOINT_ID, PG_CONNECTION_STRING, DB_SSL } = process.env;
 
-module.exports = sql = postgres({
+/* const sql = postgres({
   host: PGHOST,
   database: PGDATABASE,
   username: PGUSER,
@@ -16,7 +19,27 @@ module.exports = sql = postgres({
   connection: {
     options: `project=${ENDPOINT_ID}`,
   },
+}); */
+const knex = require('knex')({
+  client: 'pg',
+  connection: {
+  connectionString: PG_CONNECTION_STRING,
+    host : PGHOST,
+    port : 5432,
+    user : PGUSER,
+    password : PGPASSWORD,
+    database : PGDATABASE
+  },
+  ssl: config["DB_SSL"] ? { rejectUnauthorized: false } : false,
 });
+
+
+
+/* const pg = require('knex')({
+  client: 'pg',
+  connection: process.env.PG_CONNECTION_STRING,
+  searchPath: ['knex', 'public'],
+}); */
 
 
 //Express  notes
@@ -245,7 +268,8 @@ module.exports = sql = postgres({
 
           Controllers - components that decides what view to display and what information is going to be put into it
 
-
+        packages - uuid: https://www.npmjs.com/package/uuid-random   if we need packages we should look to see if there are optimized alternative
+                -> usually there are no alternatives, but we see this uuid version generates 20x faster.
 
 
 
@@ -254,18 +278,49 @@ module.exports = sql = postgres({
 
 
 */
-async function getPgVersion() {
+/* async function getPgVersion() {
   const result = await sql`select version()`;
   console.log(result);
 }
 
-getPgVersion();
+getPgVersion(); */
 router.get('/', function(req, res,) {
   // res.render('index', { title: 'Express' });
-  res.status(200).json({msg: 'hi'})
+  res.status(200).json({msg: 'hello world'})
 });
 
 
+
+router.get('/people/:limit' , async (req, res) => {
+    try {
+      let dataArr = [] //array for multi records search in db
+      //get validation for the param uuid
+      const data = await knex('people').select('*').limit(req.params.limit);
+      console.table(data)
+      res.status(200).json(data)
+    } catch (e) {
+      console.log(e)
+      //pick own status code and error specific to request!
+      res.status(500).json({error:'could not fetch'})
+    }
+})
+router.get('/person/:id' , async (req, res) => {
+    try {
+      const paramID = req.params.id
+      if (uuidValidate(paramID, 4)) {
+          const data = await knex('people').select('*').whereRaw('id = ?', [paramID])
+          console.table(data)
+          res.status(200).json(data)
+
+      }else {
+            res.status(500).json({msg: 'that is the wrong id'})
+      }
+    } catch (e) {
+      console.log(e)
+      //pick own status code and error specific to request!
+      res.status(500).json({error:'could not fetch'})
+    }
+})
 
 
 module.exports = router;
