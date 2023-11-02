@@ -13,12 +13,16 @@ const app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
+// app.use(myLogger)
 //logs request to server
 // app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+
+
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
@@ -27,6 +31,13 @@ app.use('/users', usersRouter);
 app.use(function(req, res, next) {
   next(createError(404));
 });
+/* function myLogger(req, res, next) {
+  console.log("Request IP: " + req.ip);
+  console.log("Request Method: " + req.method);
+  console.log("Request date: " + new Date());
+
+  next(); // THIS IS IMPORTANT!
+} */
 
 // error handler
 app.use(function(err, req, res, next) {
