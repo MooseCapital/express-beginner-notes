@@ -682,6 +682,7 @@ SQL CODE:
                     -> operator like, with string format search
                     knex('tableName').select('*').where('name', 'like', '%rowlikeme%')
                     knex('tableName').select('*').where()
+
                 Update data
 
                 Delete data - we will restrict delete access for safety, but this is how it's done, if a user wants to be deleted, we usually change
@@ -721,9 +722,11 @@ SQL CODE:
 
                 Groups - groups are not obsolete, they are simply the same name as roles, but groups don't have LOGIN privilege.  https://www.postgresqltutorial.com/postgresql-administration/postgresql-role-membership/
                     -> a role with the INHERIT attribute will automatically have privileges of the group roles of which it is the member
-                        CREATE ROLE group_role_name;
-                    -> give group privileges to a login role
-                        GRANT group_role to user_role;
+                    1)    CREATE ROLE group_name WITH NOLOGIN NOINHERIT;
+                        -> for safety we can make a select only role when we won't update or insert,
+                        ** this is only for the tables at this point in time, new tables won't have this groups privileges
+                    2)    GRANT INSERT, UPDATE, SELECT ON ALL TABLES IN SCHEMA public TO safe_group
+                    3)    GRAND safe_group TO safe_user
 
 
                 see privileges for all roles in a table
@@ -732,6 +735,7 @@ SQL CODE:
                 This gives privilege_type of all tables in the database, and to what user/grantee
                 SELECT * FROM information_schema.role_table_grants WHERE table_name='putTableNameHere';
 
+                postgres in terminal connection
                 in our terminal, type: psql 'connection string here'
                 get list of roles:  postgres=# \du
 
@@ -739,17 +743,42 @@ SQL CODE:
                 SELECT schema_name FROM information_schema.schemata;
 
 
-                SCHEMA:
-                when we create a table in a database, postgres automatically puts that table in the 'public' schema,
-                -> schemas enable multiple users to use a database without interfering with another
-                -> creating our table without a schema is the same as making it like this
-                    CREATE TABLE public.table_name(...);
+                SCHEMA: check our sql-production-setup.js file for good setup from StackOverflow
+                    * no matter what we grant, it is only for what currently exist, if we create a new table, then our role will have no select, insert privilege on it
+                    postgres calls them namespaces internally, if we have many tables like 300, we need to group things together in a schema
+                    -> Any of the objects defined in a database (tables, views, indexes, sequences, etc.) are defined within a schema within the database
+                    -> when we create a table in a database, postgres automatically puts that table in the 'public' schema,
+                    -> schemas enable multiple users to use a database without interfering with another
+                    -> creating our table without a schema is the same as making it like this
+                        CREATE TABLE public.table_name(...);
+                    -> we can alter a table to change schema
+                        alter table ... set schema ...
+
+                    The important thing to remember is, this is for BIG databases, or separation of tables in one database.
+                        -> for different projects it would be better to make a whole new database, but even for the same project/app
+                        -> we might need restrictions on some tables, and group those tables in its own schema, so we set privileges by schema
+                        GRANT ALL ON ALL TABLES IN SCHEMA schema_name TO user;
+                    -> give privilege at schema level, only create and usage are allowed for schema privileges, the rest are at table level
+                        GRANT USAGE,CREATE in SCHEMA schema_name TO role_name
+
+                    production - we should not be using the public schema, but make our own with the right restrictions, then grant user privilege on
+                            that schema only.
 
 
-        steps for new database -
+            backup - pg_dump -Fc -v -d <source_database_connection_string> -f <dump_file_name>
+
+        steps for new database - ***remember all privileges apply to what objects/tables currently exist, we must grant privileges to our group/user each time
+            -> or we create all tables then grant limited privileges, or the BEST way is to make default privileges so we grant one time only
+                ALTER DEFAULT PRIVILEGES GRANT SELECT,INSERT,UPDATE ON TABLES TO role_here
+                ALTER DEFAULT PRIVILEGES IN SCHEMA myschema GRANT SELECT,INSERT,UPDATE ON TABLES TO PUBLIC;
+
             1) create user with only safe roles above for all tables, insert, update, select
                 -> GRANT TRIGGER, REFERENCES, INSERT, UPDATE, SELECT ON ALL TABLES IN SCHEMA "public" TO safeuser;
             2) when creating table, use DEFAULT for id, default to uuid, and use DEFAULT for user roles etc..
+            3) to be able to use uuid default generate, id uuid DEFAULT uuid_generate_v4 () : we will need to download uuid-ossp in postgres
+                Install --> CREATE EXTENSION uuid-ossp
+
+            4)
 
 
 
