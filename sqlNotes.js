@@ -535,7 +535,7 @@ SQL CODE:
 
 
 
-        Cache vs nosql database - like redis or kafka https://upstash.com/, these are NOT our main sql database, these reduce main load from our database
+        Cache vs nosql database - like redis or kafka https://upstash.com/, polyscale.ai these are NOT our main sql database, these reduce main load from our database
             -> redis is often used as cache or session storage. meaning a call to the main sql db once, then everything is in redis now to reduce main sql db load
             -> if we have many blog post, we don't want to simply type our text in the react elements in HTML,
             -> by putting our data in the database, no matter what front-end we use, simply call the data from db for our new front-end and get our blog post.
@@ -560,6 +560,19 @@ SQL CODE:
         Neon.tech postgres database serverless pricing -
 
             setup project in nodejs - https://neon.tech/docs/guides/node
+            Quick start setup - we see, by putting DEFAULT we can have default values not needing to insert it, such as booleans that will be useful if account is deleted
+                -> and user membership levels default to 'free' tier etc..
+
+                CREATE TABLE contacts (
+                        id uuid DEFAULT uuid_generate_v4 (),
+                        first_name VARCHAR(50) NOT NULL,
+                        age INT,
+                        favorite_color VARCHAR(5),
+                        birthdate DATE,
+                        PRIMARY KEY (contact_id),
+                        UNIQUE(phone)
+                    );
+                insert into people (first_name, age, favorite_color, birthdate) values ('Arlene', 19, 'green', '6/1/1997');
 
             Auto-suspend - we can configure the time our server is inactive before it scales resources to zero or better performance(never scaling down)https://neon.tech/docs/guides/auto-suspend-guide
                     -> this is 5 min by default, once we make money, we might want 1 hour.
@@ -606,9 +619,6 @@ SQL CODE:
                         -> CHECK will check a value against a condition, usually simple like greator/lesser than a value: salary numeric CHECK(salary > 0)
                     CREATE TABLE contacts (
                         id uuid DEFAULT uuid_generate_v4 (),
-                        first_name VARCHAR NOT NULL,
-                        phone VARCHAR,
-
                         PRIMARY KEY (contact_id),
                         UNIQUE(id, phone)
                     );
@@ -648,34 +658,140 @@ SQL CODE:
 
 
 
-        Knex ORM for postgres -
+        Knex ORM for postgres -  https://knexjs.org/guide/
                 The important thing to remember is most anything we want to do has a raw query builder
                 -> such as, we must remember our injection prevention, knex does this for us auto, when not using raw
                 knex('tableName').select('*').whereRaw('id = ?', [req.params.id])
+
+            we can do a basic search query in different ways
+                Create date
+
+
+
+
+                Get / read data
+                    -> column name first, then search value 2nd
+                    knex('tableName').select('*').where('key','bob')
+
+                    -> use operator comparisons in the middle
+                    knex('tableName').select('*').where('num','>',5)
+
+                    -> Object syntax
+                    knex('tableName').select('*').where({key: 'bob'})
+
+                    -> operator like, with string format search
+                    knex('tableName').select('*').where('name', 'like', '%rowlikeme%')
+                    knex('tableName').select('*').where()
+                Update data
+
+                Delete data - we will restrict delete access for safety, but this is how it's done, if a user wants to be deleted, we usually change
+                    -> some isDeleted column value to true, then safely delete every x months, like 6 months.
+                    -> this is also table specific, users should not be deleted, but possibly some records we no longer need, this should be table by table
+
+
+        Check table & user privileges - create a new user for each new database   https://www.postgresqltutorial.com/postgresql-administration/postgresql-grant/
+
+                roles: are at the cluster level, and own database objects, like the table, functions..
+                    **The end goal is to make access to a database without the ability to delete or drop for safety and security in production
+                    -> roles have made users obsolete.. roles are made when creating these under the hood
+                    -> roles that can log in are the same as user accounts in other databases,
+                    CREATE ROLE user1 WITH LOGIN PASSWORD 'abc123' INHERIT;
+
+
+                we created our user with login, password only, now we see no attributes like create role, create db, that neon gives by default, seen with postgres=# \du
+
+                Attributes: these define privileges for a role, and come after WITH above on creation, our production database won't need all of these attributes https://www.postgresql.org/docs/current/sql-createrole.html
+                        LOGIN, SUPERUSER, CREATEROLE, CREATEDB, PASSWORD, INHERIT, BYPASSRLS, CONNECTIONLIMIT
+
+                Privileges - similar to attributes: SELECT, INSERT, UPDATE, DELETE, TRUNCATE, or ALL (includes everything)
+                    -> after creating a login role, it can not even select from our table yet, we need to grant it privileges
+                    -> we see privileges are table by table, not on the entire database
+                        GRANT privilege_here ON table_name TO  role_name;
+
+                    * we tried selecting from our table with no roles on safeuser, and got 'permission denied for table people'
+
+                    -> since testing, we were unable to delete any records or tables
+                        GRANT SELECT, INSERT,UPDATE ON people TO  safeuser;
+
+                    ->instead of making it for each table, we do this for all tables, and this way we can have read only users etc..
+                        GRANT SELECT, INSERT,UPDATE ON ALL TABLES IN SCHEMA "public" TO user_here;
+
+                    * beware if we need advanced things like triggers, execution etc.. we need the TRIGGER privilege on our role
+
+
+                Groups - groups are not obsolete, they are simply the same name as roles, but groups don't have LOGIN privilege.  https://www.postgresqltutorial.com/postgresql-administration/postgresql-role-membership/
+                    -> a role with the INHERIT attribute will automatically have privileges of the group roles of which it is the member
+                        CREATE ROLE group_role_name;
+                    -> give group privileges to a login role
+                        GRANT group_role to user_role;
+
+
+                see privileges for all roles in a table
+                    SELECT grantee, privilege_typeFROM information_schema.role_table_grants WHERE table_name='people';
+
+                This gives privilege_type of all tables in the database, and to what user/grantee
+                SELECT * FROM information_schema.role_table_grants WHERE table_name='putTableNameHere';
+
+                in our terminal, type: psql 'connection string here'
+                get list of roles:  postgres=# \du
+
+                in sql view schemas
+                SELECT schema_name FROM information_schema.schemata;
+
+
+                SCHEMA:
+                when we create a table in a database, postgres automatically puts that table in the 'public' schema,
+                -> schemas enable multiple users to use a database without interfering with another
+                -> creating our table without a schema is the same as making it like this
+                    CREATE TABLE public.table_name(...);
+
+
+        steps for new database -
+            1) create user with only safe roles above for all tables, insert, update, select
+                -> GRANT TRIGGER, REFERENCES, INSERT, UPDATE, SELECT ON ALL TABLES IN SCHEMA "public" TO safeuser;
+            2) when creating table, use DEFAULT for id, default to uuid, and use DEFAULT for user roles etc..
+
+
 
         Sql injection prevention -
 
             we should be testing all values before they make a server query, this will save so much server time and resources/money. But also
                 by checking values, we make sure there is nothing funny going into our query like potential injection
 
-                uuid validation - https://www.npmjs.com/package/uuid-validate
-                const validate = require('uuid-validate');
-
+                * we no longer need uuid-validate package, we can validate uuid in main validator.js package
+                    uuid validation - https://www.npmjs.com/package/uuid-validate
+                    const validate = require('uuid-validate');
                 -> we can in general validate a uuid without specifying version, or we can specify. we can check a uuid version,
                     validate('95ecc380-afe9-11e4-9b6c-751b66dd541e'); // => true
+
 
                 general validator - https://github.com/validatorjs/validator.js
                 -> this is an easy way to validate email format, password length, credit card format etc..
                     npm i validator
                     const validator = require('validator');
                     validator.isEmail('foo@bar.com'); //=> true
+                *** uuid validation with validator.js
+                    if (validator.isUUID(paramID, [4])) { } -> validator.isUUID(string,[uuid version])
 
                 after validating data is in the right format, we will want to make sure all usernames/email and strings are in all lowercase then
                  we will want to trim all strings before putting them into the database. this is after we even trim on client side, for extra safety.
 
+                Ways injections happen:
+                    1) adding booleans to where clause that is always true,  ' OR 1=1
+                    2) escaping part of query by comments, --
+                    3) ending initial query and starting new query, '; DROP TABLE USERS;
+                    4) connecting data from multiple tables using UNION
 
-
-
-
+                injection Prevent steps:
+                    1) do not rely on client side input validation, validate on client and server, such as validator.isEmail() with trim(),
+                        -> and remember to put it in all lowercase for storage
+                    2) restrict database users privileges, so they can't easily drop or delete a database/table https://neon.tech/docs/manage/roles
+                        ->  https://www.crunchydata.com/blog/safer-application-users-in-postgres
+                    3) use prepared statements and query parameters, don't concatenate user input with template strings in the query
+                        -> use real prepared statements if possible, add untrusted input as parameters, like we did in knex with ?
+                    4) scan our code for injection vulnerabilities like https://snyk.io/plans/
+                    5) use an ORM layer like knex, the ORM will map database results to objects and this prevents many explicit sql queries
+                    6) don't rely on blocklisting like blocking users, some keywords and chars can be real names.
+                    7) stored database procedures are not safe by default. can be vulnerable to injections when implemented wrong. check docs if we need.
 
 */

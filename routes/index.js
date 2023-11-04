@@ -4,10 +4,10 @@ const router = express.Router();
 const postgres = require('postgres');
 const {config} = require("dotenv");
 require('dotenv').config();
-const uuidValidate = require('uuid-validate');
+// const uuidValidate = require('uuid-validate');
 const validator = require('validator');
 
-let { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, ENDPOINT_ID, PG_CONNECTION_STRING, DB_SSL } = process.env;
+let { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, ENDPOINT_ID, PG_CONNECTION_STRING, DB_SSL, PG_CONNECTION_SAFE_STRING } = process.env;
 
 /* const sql = postgres({
   host: PGHOST,
@@ -23,7 +23,7 @@ let { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, ENDPOINT_ID, PG_CONNECTION_STRING,
 const knex = require('knex')({
   client: 'pg',
   connection: {
-  connectionString: PG_CONNECTION_STRING,
+  connectionString: PG_CONNECTION_SAFE_STRING,
     host : PGHOST,
     port : 5432,
     user : PGUSER,
@@ -307,8 +307,8 @@ router.get('/people/:limit' , async (req, res) => {
 router.get('/person/:id' , async (req, res) => {
     try {
       const paramID = req.params.id
-      if (uuidValidate(paramID, 4)) {
-          const data = await knex('people').select('*').whereRaw('id = ?', [paramID])
+      if (validator.isUUID(paramID, [4])) {
+          const data = await knex('people').select('*').where('id', paramID)
           console.table(data)
           res.status(200).json(data)
 
@@ -321,6 +321,7 @@ router.get('/person/:id' , async (req, res) => {
       res.status(500).json({error:'could not fetch'})
     }
 })
+
 
 
 module.exports = router;
