@@ -769,9 +769,10 @@ SQL CODE:
 
         steps for new database - ***remember all privileges apply to what objects/tables currently exist, we must grant privileges to our group/user each time
             -> or we create all tables then grant limited privileges, or the BEST way is to make default privileges so we grant one time only
-                ALTER DEFAULT PRIVILEGES GRANT SELECT,INSERT,UPDATE ON TABLES TO role_here
-                ALTER DEFAULT PRIVILEGES IN SCHEMA myschema GRANT SELECT,INSERT,UPDATE ON TABLES TO PUBLIC;
-
+                ALTER DEFAULT PRIVILEGES IN SCHEMA schema_name GRANT SELECT,INSERT,UPDATE ON TABLES TO role_here;
+                -> this is tables only, but we should do schema wide above
+                    ALTER DEFAULT PRIVILEGES GRANT SELECT,INSERT,UPDATE ON TABLES TO role_here
+                -> to see default privileges, go into psql -> \ddp
             1) create user with only safe roles above for all tables, insert, update, select
                 -> GRANT TRIGGER, REFERENCES, INSERT, UPDATE, SELECT ON ALL TABLES IN SCHEMA "public" TO safeuser;
             2) when creating table, use DEFAULT for id, default to uuid, and use DEFAULT for user roles etc..
