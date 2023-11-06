@@ -272,8 +272,8 @@ const knex = require('knex')({
                 -> usually there are no alternatives, but we see this uuid version generates 20x faster.
 
 
-
-
+        DNS response time -our routes must search in the domain, which goes to the dns every time we make a request https://www.npmjs.com/package/cacheable-lookup
+                -> this package specifies the entire link to save us that time, we should attempt this when we get our own domain up for production
 
 
 

@@ -663,11 +663,23 @@ SQL CODE:
                 -> such as, we must remember our injection prevention, knex does this for us auto, when not using raw
                 knex('tableName').select('*').whereRaw('id = ?', [req.params.id])
 
-            we can do a basic search query in different ways
-                Create date
+                Insert data
+                    .insert(data, [returning], [options])
+                    -> we can put a single insert or an array or inserts as a single command
+                    -> when we insert, we can choose what data to return back, if we set nothing, we get [] back
+                        -> the 2nd parameter is what we want to return, as in column names
+                    knex('tableName').insert({title: 'book club'})
 
+                    -> multi insert - we get
+                    knex.insert(
+                        [
+                          { title: 'Great Gatsby' },
+                          { title: 'Fahrenheit 451' }
+                        ],
+                        ['id']).into('books')
 
-
+                        Returning - the 2nd parameter returning, above will do the same thing as this below
+                            knex('books').returning('id).insert({title: 'Slaughterhouse Five'})
 
                 Get / read data
                     -> column name first, then search value 2nd
@@ -675,20 +687,65 @@ SQL CODE:
 
                     -> use operator comparisons in the middle
                     knex('tableName').select('*').where('num','>',5)
+                    -> add multiple where clauses, for multiple comparisons AND - both are true
+                    knex('tableName').select('*').where('num','>',5).where('num', '<',10)
+                    -> add orWhere comparison, either can be true
+                    knex('tableName').select('*').where('num','>',5).orWhere('num', '<',2)
 
-                    -> Object syntax
-                    knex('tableName').select('*').where({key: 'bob'})
+                    sort - order by (columnName, order)
+                        knex('users').orderBy('name', 'desc')
+
+                    count data of a column using alias, then group by that column and sort it. for one table
+                        knex('users').count('first_name AS name_count').groupBy('first_name').orderBy('name_count', 'desc')
+
+                    joins - our films and category table has a middle table that matches filmID and categoryID together, so we join them
+                        knex('users').select('category.name').count('category AS category_count').innerJoin('film_category',film.film_id,film_category,film_id)
+                        .innerJoin('category','film_category.category_id','category.category_id').groupBy('category.name').orderBy('category_count', 'desc')
+
+                    -> Object syntax, we could do this for a single column search, BUT when knex sees object format, it assumes we have multiple. so it uses AND
+                    knex('tableName').select('*').where({key: 'bob', 'id': 123})
 
                     -> operator like, with string format search
                     knex('tableName').select('*').where('name', 'like', '%rowlikeme%')
-                    knex('tableName').select('*').where()
 
                 Update data
+                    knex('books').where('published_date', '<', 2000)
+                      .update({
+                        status: 'archived',
+                        thisKeyIsSkipped: undefined
+                      })
+
+                alter & delete columns -
+                    it would be far simpler to build out all columns and data types in our tables and db, then insert.. everything in knex
+                        raw sql ->
+                        ALTER TABLE table_name ADD column_name data_type(VARCHAR(50)
+                        ALTER TABLE people ADD isDeleted BOOLEAN DEFAULT FALSE
 
                 Delete data - we will restrict delete access for safety, but this is how it's done, if a user wants to be deleted, we usually change
                     -> some isDeleted column value to true, then safely delete every x months, like 6 months.
                     -> this is also table specific, users should not be deleted, but possibly some records we no longer need, this should be table by table
+                    knex('accounts').where('activated', false).del()
 
+                JSON data - we can insert with plain insert above using object
+                    Extract json
+                        -> knex lets us use raw queries, so if we don't want to use the .json extract, we can try
+                            -> remember, the arrow -> will get a properties data inside an object
+                              knex.raw('select person -> 'age' from users where id = ?', [1]).then(function(resp) { })
+
+                        knex way    - knex('table').jsonExtract(column|builder|raw|array[], path, [alias], [singleValue]) -> we can use alias for the property below
+                            knex('accounts').jsonExtract('json_col', '$.name')
+
+                    Update json - knex('table').jsonSet(column|builder|raw, path, value, [alias])
+                        knex('accounts').jsonInsert('json_col', '$.name', 'newName', 'newNameCol')
+
+                        -> here with no alias and array for the value
+                        knex('accounts').jsonInsert('json_col', '$.pets', ['fluffy', 'mittens'])
+
+                        knex('accounts').jsonInsert('json_col', '$.name', { "name": "newName" }, 'newNameCol')
+
+
+                .toString & .toSQL() - these attached to the end of our knex query, will give us the raw sql query it is sending to the server
+                    -> these will make the actual query never hit the database, it's only for getting RAW sql formats out we might need.
 
         Check table & user privileges - create a new user for each new database   https://www.postgresqltutorial.com/postgresql-administration/postgresql-grant/
 
@@ -730,7 +787,7 @@ SQL CODE:
 
 
                 see privileges for all roles in a table
-                    SELECT grantee, privilege_typeFROM information_schema.role_table_grants WHERE table_name='people';
+                    SELECT grantee, privilege_type FROM information_schema.role_table_grants WHERE table_name='people';
 
                 This gives privilege_type of all tables in the database, and to what user/grantee
                 SELECT * FROM information_schema.role_table_grants WHERE table_name='putTableNameHere';
@@ -742,6 +799,8 @@ SQL CODE:
                 in sql view schemas
                 SELECT schema_name FROM information_schema.schemata;
 
+                in psql show default privileges
+                    postgres=# \ddp
 
                 SCHEMA: check our sql-production-setup.js file for good setup from StackOverflow
                     * no matter what we grant, it is only for what currently exist, if we create a new table, then our role will have no select, insert privilege on it
@@ -824,4 +883,12 @@ SQL CODE:
                     6) don't rely on blocklisting like blocking users, some keywords and chars can be real names.
                     7) stored database procedures are not safe by default. can be vulnerable to injections when implemented wrong. check docs if we need.
 
+
+
+
+
 */
+
+
+
+
