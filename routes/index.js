@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
-/* GET home page. */
 const postgres = require('postgres');
-const {config} = require("dotenv");
-require('dotenv').config();
+// const {config} = require("dotenv");
+// require('dotenv').config();
 // const uuidValidate = require('uuid-validate');
 const validator = require('validator');
+const knex = require('../db');
 
-let { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, ENDPOINT_ID, PG_CONNECTION_STRING, DB_SSL, PG_CONNECTION_SAFE_STRING } = process.env;
 
+// let { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, ENDPOINT_ID, PG_CONNECTION_STRING, DB_SSL, PG_CONNECTION_SAFE_STRING } = process.env;
+// const db = knex(knexfile)
 /* const sql = postgres({
   host: PGHOST,
   database: PGDATABASE,
@@ -20,7 +21,7 @@ let { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, ENDPOINT_ID, PG_CONNECTION_STRING,
     options: `project=${ENDPOINT_ID}`,
   },
 }); */
-const knex = require('knex')({
+/* const knex = require('knex')({
   client: 'pg',
   connection: {
   connectionString: PG_CONNECTION_SAFE_STRING,
@@ -32,14 +33,9 @@ const knex = require('knex')({
   },
   ssl: config["DB_SSL"] ? { rejectUnauthorized: false } : false,
 });
+ */
 
 
-
-/* const pg = require('knex')({
-  client: 'pg',
-  connection: process.env.PG_CONNECTION_STRING,
-  searchPath: ['knex', 'public'],
-}); */
 
 
 //Express  notes
@@ -275,6 +271,16 @@ const knex = require('knex')({
         DNS response time -our routes must search in the domain, which goes to the dns every time we make a request https://www.npmjs.com/package/cacheable-lookup
                 -> this package specifies the entire link to save us that time, we should attempt this when we get our own domain up for production
 
+        promise.All - so far each request has made 1 await request to our db, but if we are running multiple calls that don't depend on eachother, we want those to start at
+            -> the same time, not start after one finished.. so promise.all will start them, then once ALL are done, we get a response.
+            const [resultFunction1, resultFunction2] = await Promise.all([
+                 functionThatReturnsPromise1(),
+                 functionThatReturnsPromise2()
+              ]);
+
+        cron jobs - when we want to specify when to run a function every x amount of time or at x time per day/week etc.. not on user interaction
+            digitalocean or others can add it for us, but we should look at packages to have it run ourself on our server https://www.npmjs.com/package/node-cron
+                https://www.mickpatterson.com.au/blog/how-to-setup-scheduled-functions-with-nodejs-express-and-node-cron
 
 
 */
@@ -321,6 +327,7 @@ router.get('/person/:id' , async (req, res) => {
       res.status(500).json({error:'could not fetch'})
     }
 })
+
 
 
 

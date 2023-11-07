@@ -407,13 +407,15 @@ SQL CODE:
                 -> transaction would not complete either so that is good, no changes can be seen inside the transaction until AFTER COMMIT
 
                 -> if we do not have COMMIT, nothing will save to the database, postgres guarantees it will save to db on commit, even if crash happens right after
-                    BEGIN;
+                    BEGIN TRANSACTION;
                         SAVEPOINT foo;
                         INSERT INTO kv VALUES (5,5);
                         SAVEPOINT bar;
                         INSERT INTO kv VALUES (6,6);
                         ROLLBACK TO SAVEPOINT foo;
                     COMMIT;
+
+        CSV to postgres - https://www.postgresqltutorial.com/postgresql-tutorial/import-csv-file-into-posgresql-table/
 
         Injection attacks - https://www.w3schools.com/sql/sql_injection.asp
             using single quotes to input variables leaves room for the user to input email in single quotes
@@ -679,7 +681,7 @@ SQL CODE:
                         ['id']).into('books')
 
                         Returning - the 2nd parameter returning, above will do the same thing as this below
-                            knex('books').returning('id).insert({title: 'Slaughterhouse Five'})
+                            knex('books').returning('id').insert({title: 'Slaughterhouse Five'})
 
                 Get / read data
                     -> column name first, then search value 2nd
@@ -746,6 +748,31 @@ SQL CODE:
 
                 .toString & .toSQL() - these attached to the end of our knex query, will give us the raw sql query it is sending to the server
                     -> these will make the actual query never hit the database, it's only for getting RAW sql formats out we might need.
+
+                TRANSACTION - when we want to do potentially database breaking things like delete or update, when we don't specify the 'where', these operations
+                    can delete or override every single record in our database, so we need a transaction to list out everything we do, we should not have delete
+                    access in our account, so that leaves transactions for updates and using transactions for important operations that we must be assured they either
+                    all completed or none complete.  https://knexjs.org/guide/transactions.html#transaction-modes
+                    -> this example shows moving a bank balance transaction, but ours will usually just be updating one record and using transaction for safety and accountability
+                        -> don't forget savepoints and rollback on error,SAVEPOINT FOO; ROLLBACK TO SAVEPOINT foo;
+                        BEGIN TRANSACTION;
+                            UPDATE accounts_table SET balance = balance - 1000 WHERE id = 1;
+                            UPDATE accounts_table SET balance = balance + 1000 WHERE id = 2;
+                            SELECT id, name, balance FROM accounts;
+                        COMMIT TRANSACTION;
+                    -> knex format
+                        const trxProvider = knex.transactionProvider();
+                        const trx = await trxProvider();
+                        const ids = await trx('people').where('age', '>',50).update('is_old',TRUE)
+                        trx.commit()
+                        catch {
+                            trx.rollback()
+                        }
+
+
+                Knex.raw -  we can do raw sql queries, such as transactions that might be difficult
+                    knex.raw('select * from users where id = ?', [1]).then(function(resp) {  });
+
 
         Check table & user privileges - create a new user for each new database   https://www.postgresqltutorial.com/postgresql-administration/postgresql-grant/
 
@@ -886,8 +913,9 @@ SQL CODE:
 
 
 
-
 */
+
+
 
 
 
