@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const postgres = require('postgres');
+const validator = require('validator');
+const knex = require('../db');
+const {getPeople, getPerson} = require('../controllers/person.js')
+
+// const postgres = require('postgres');
 // const {config} = require("dotenv");
 // require('dotenv').config();
 // const uuidValidate = require('uuid-validate');
-const validator = require('validator');
-const knex = require('../db');
 
 
 // let { PGHOST, PGDATABASE, PGUSER, PGPASSWORD, ENDPOINT_ID, PG_CONNECTION_STRING, DB_SSL, PG_CONNECTION_SAFE_STRING } = process.env;
@@ -20,7 +22,7 @@ const knex = require('../db');
   connection: {
     options: `project=${ENDPOINT_ID}`,
   },
-}); */
+});
 /* const knex = require('knex')({
   client: 'pg',
   connection: {
@@ -186,9 +188,19 @@ const knex = require('../db');
 
   request - req is an object in routes and middleware, we can access data and things sent to the server https://expressjs.com/en/4x/api.html#req
         req.params.paramName - get parameters sent in url
+        req.query - get access to query search strings in url
         req.body - get data sent with request, like form data
         req.originalUrl - get url page route
         req.cookies - get cookies with cookie-parser middleware, this req contains cookies sent by the request on
+        req.get() - get header fields  req.get('Content-Type') -> 'text/plain'
+            req.get('host') -> same as below req.headers.host, or req.header('host')
+
+        req.headers - is the json object, so we can access all on the object
+            access individual headers -
+              console.log(req.headers.host)
+              const host = req.headers['host']; -> destructure
+
+
 
   response - an object that represents the response express sends back to the user, typically use information from req to determine what to send back
         -> our server will either be an api to send data to/from the database, or be server rendered dynamic pages to send actual html files etc. https://expressjs.com/en/4x/api.html#res.json
@@ -204,6 +216,24 @@ const knex = require('../db');
             advanced ones to use later -
           res.location() , res.deleteCookie() - we saw, we can't log(res) because we create it, so we log the request the user makes, in our response we can do things like
             delete a users cookie
+          res.set() - set headers and content type of response, in our rest api we will default to .json objects  https://stackoverflow.com/questions/51661744/how-to-set-content-type-when-doing-res-send
+              -> here we set the header, before we send plain text
+              res.set('content-type', 'text/plain');  -> or object for multiple
+
+              res.set({'content-type': 'text/plain',
+                        'Content-Length': '100',
+                        'Cache-control': 'public',})
+
+              res.send(JSON.stringify({...}));
+
+
+          res.type() - like set above, type is short for res.set('content-type', _here)
+                      res.type('.html')            // => 'text/html'
+                      res.type('html')             // => 'text/html'
+                      res.type('json')             // => 'application/json'
+                      res.type('application/json') // => 'application/json'
+                      res.type('png')              // => 'image/png'
+                      res.type('mp3')              // => 'audio/mp3'
 
   next - if our middleware does not send a response to the user, we must call next function at the end of the middleware,
       -> this simply tells express to move on to the next middleware in the stack.
@@ -221,30 +251,30 @@ const knex = require('../db');
         middleware functions have access to the request and response object, like our cookies, we will need that in request from the user
           -> it can make changes to request/response object, end response cycle, call next middleware
 
-    params - when using params, the req.params.id is a string, so if we compare a number id member.id === req.params.id , even if they match
-      -> we will get nothing because we compare the number 4 to string "4", so we must convert it to number with Number(req.params.id) or parseInt(req.params.id)
+    params - when using params, the req.params.id is a string, convert to a Number(req.param.id) if we need a number
 
-        we make sure to validate the actual data in the route request, like with mongodb, we won't waste api calls if the url is not even in uuid format in the first place
-          -> this will save many wrong calls to db and save money for us, false calls would be a huge server waste, look in testNodeRoutes.js for examples
+        make sure to validate uuid or id in the request, BEFORE it hits the database call. this will save lots of money and free up database resources!
+
             app.get('/people/:id' , async (req, res) =>
-             if (ObjectId.isValid(req.params.id)) {
-              const data = await db.collection('people').deleteOne({_id: new ObjectId(req.params.id)})
-              res.status(200).json(data)
-              } else {
-                  res.status(500).json({error: 'could not delete document'})
-              }
-        ** our routes read in order, so we must ALWAYS put parameters behind all hardcoded routes, because, if we type /people/new right now, it will run on the route above
+             if (!validator.isUUID(req.params.id, [4])) {
+                  return res.status(500).json({error: 'could not fetch'})
+            }
+            const data = await knex('people').select('*').where('id', req.params.id)
+            res.status(200).json(data)
+        ** our routes read in order, so ALWAYS put parameters behind all hardcoded routes, if we type /people/new right now, it will run on the route above
           -> the server reads the people/:id first, and thinks new is the parameter for :id above, and it could be, so since new is hard coded, it should be above dynamic params
-            -> simply remember, put ALL param routes last so we don't get mixed up
-             app.get('/people/new' , async (req, res) =>
+            -> simply remember, put ALL param routes last, so we don't get mixed up
+
+        **Params are for REST parameters, which identify the resource being requested.
+            Query parameters are used for search parameters that don't directly identify the resource, such as keywords.
+
+    Query - is mostly used for searching,sorting, filtering, pagination.. a query could replace a param, BUT we won't because you can use a query in addition
+            -> to a dynamic parameter
+            api/query/?name=phone
+        -> we access the query data object
+            const name = req.query.name.toLowerCase()
 
 
-      we can have our routes in their own file like we do with the express boilerplate/ pug
-        app.use('/users', './routes/users'); -> we put the route base, and the link to the file in this middleware
-        -> the route in users is actually /users , but we have that in use, so we can use a basic /, and it acts like /users for us without writing
-          router.get('/', function(req, res, next) {
-            res.send('respond with a resource');
-          });
 
       when we do router.post() request, we are receiving json data in the server, to use this data we need the json middleware
         -> our React app or frontend would make a post request with fetch or axios from a form submit, then our server receives that
@@ -264,12 +294,17 @@ const knex = require('../db');
 
           Controllers - components that decides what view to display and what information is going to be put into it
 
-        packages - uuid: https://www.npmjs.com/package/uuid-random   if we need packages we should look to see if there are optimized alternative
-                -> usually there are no alternatives, but we see this uuid version generates 20x faster.
+
+      Libraries -
+            uuid-random: https://www.npmjs.com/package/uuid-random
+              --> always check for optimized package alternatives, this generates uuid's 20x faster than normal package
+
+            cacheable-lookup : https://www.npmjs.com/package/cacheable-lookup
+              --> our routes search in the domains, when searches the dns every time for each request, if we cache that, then we save dns time, even though it
+                  -> should be very fast
 
 
-        DNS response time -our routes must search in the domain, which goes to the dns every time we make a request https://www.npmjs.com/package/cacheable-lookup
-                -> this package specifies the entire link to save us that time, we should attempt this when we get our own domain up for production
+
 
         promise.All - so far each request has made 1 await request to our db, but if we are running multiple calls that don't depend on eachother, we want those to start at
             -> the same time, not start after one finished.. so promise.all will start them, then once ALL are done, we get a response.
@@ -283,13 +318,28 @@ const knex = require('../db');
                 https://www.mickpatterson.com.au/blog/how-to-setup-scheduled-functions-with-nodejs-express-and-node-cron
 
 
-*/
-/* async function getPgVersion() {
-  const result = await sql`select version()`;
-  console.log(result);
-}
+        Hosting our expressjs - we can use things like paas, platform as a service.. railway, render, fly.io, digitalocean, heroku, These will make it faster at first
+            and easy to setup hosting for our backend express api, but as we get more users and need to scale, our server cost on digitalocean can be 4x as much
+            as learning to set up our own server on hetzner or linode.
 
-getPgVersion(); */
+
+        new route files - we see the app.js file imports our index.js and users.js, inside users.js, all routes start with /users
+                const usersRouter = require('./routes/users');
+                app.use('/users', usersRouter);
+            -> app.js uses them at /users base, so inside user.js we can start all routes with basic / , and we know it starts with users
+
+            -> we see these very long route functions, we can have our routers request, then put the callback in another controller file, and import it here
+            * -> the primary setup will be a file for our routes, then export it like above, and require in app.js, then have the actual functions for that route file
+                -> inside a controllers file, module.exports = {getMikeRoute}
+
+                const  {getMikeRoute } = require('../controllers/mike.js')
+                router.get("/mike",getMikeRoute);
+
+            regex in routes - can be catfish, or dogfish..
+                app.get(/.*fish$/, function (req, res) {
+                });
+*/
+
 router.get('/', function(req, res,) {
   // res.render('index', { title: 'Express' });
   res.status(200).json({msg: 'hello world'})
@@ -297,38 +347,9 @@ router.get('/', function(req, res,) {
 
 
 
-router.get('/people/:limit' , async (req, res) => {
-    try {
-      let dataArr = [] //array for multi records search in db
-      //get validation for the param uuid
-      const data = await knex('people').select('*').limit(req.params.limit);
-      console.table(data)
-      res.status(200).json(data)
-    } catch (e) {
-      console.log(e)
-      //pick own status code and error specific to request!
-      res.status(500).json({error:'could not fetch'})
-    }
-})
-router.get('/person/:id' , async (req, res) => {
-    try {
-      const paramID = req.params.id
-      if (validator.isUUID(paramID, [4])) {
-          const data = await knex('people').select('*').where('id', paramID)
-          console.table(data)
-          res.status(200).json(data)
+router.get('/people/:limit' , getPeople)
 
-      }else {
-            res.status(500).json({msg: 'that is the wrong id'})
-      }
-    } catch (e) {
-      console.log(e)
-      //pick own status code and error specific to request!
-      res.status(500).json({error:'could not fetch'})
-    }
-})
-
-
+router.get('/person/:id' , getPerson)
 
 
 module.exports = router;

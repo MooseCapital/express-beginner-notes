@@ -52,6 +52,7 @@ SQL CODE:
             NOT NULL - will give error if we don't input value or put in null when inserting, this helps if cell can NOT be blank
             UNIQUE - when we want to make sure any value in column is truly unique, like email address, ssn.. etc https://www.cockroachlabs.com/docs/v23.1/unique
             DEFAULT - set default value if none is written, we can put UUID function as default to generate it.
+            CHECK - warranty_period INT CHECK (warranty_period BETWEEN 0 AND 24) -> ensure a value is in a range of vlaues or equal to a value
             PRIMARY KEY - constraint uniquely identifies each record in a table. no null values
                 -> inserting in table could look like, ID int NOT NULL PRIMARY KEY,
 
@@ -61,7 +62,6 @@ SQL CODE:
                     -> referenced table can be entered into our database.
                 -> if we do NOT use foreign keys and need matching tables to connect data. we could mistype text and it would be inserted
                     ->where a foreign key will make sure the data is EXACTLY in the other table to insert
-
 
         insert new row into table -
              INSERT INTO table_name (id_num, 'bob', 33, 'cool')
