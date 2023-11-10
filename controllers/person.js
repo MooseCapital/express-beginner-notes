@@ -34,9 +34,28 @@ const getPerson = (async (req, res) => {
     }
 })
 
+const getPage = (async (req, res) => {
+      const numId = Number(req.params.id);
+      const id = req.params.id;
+      const page  = req.query.page || 0;   // normalize it with req.query.name.toLowerCase() if query is text
+      const rowsPerPage = 10;
+      const body = req.body.request;
+        try {
+          /* if (!validator.isUUID(id, [4])) {
+            return res.status(500).json({msg: 'that is the wrong id'})
+          } */
+          const data = await knex('people').select('*').orderBy('birthdate').offset(page * rowsPerPage).limit(rowsPerPage)
+          console.table(data)
+            // console.log(req.body)
+          res.status(200).json(data)
+        } catch (e) {
+          console.log(e)
+          res.status(500).json({error:'could not fetch'})
+        }
+})
 
 
 
 
 
-module.exports = {getPeople, getPerson}
+module.exports = {getPeople, getPerson, getPage}

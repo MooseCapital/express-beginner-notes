@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const validator = require('validator');
 const knex = require('../db');
-const {getPeople, getPerson} = require('../controllers/person.js')
+const {getPeople, getPerson, getPage} = require('../controllers/person.js')
 
 // const postgres = require('postgres');
 // const {config} = require("dotenv");
@@ -142,17 +142,16 @@ const {getPeople, getPerson} = require('../controllers/person.js')
       200 OK - request succeeded,GET fetched and transmitted in message body
         PUT or POST, HEAD
       201 Created - request succeeded, and new resource was created as a result, usually for POST or some PUT request
-      400 Bad request - server can not or will not process request, due to something perceived to be client error(malformed request syntax)
-        ,invalid request message framing or deceptive request routing
-      401 unauthorized - means unauthenticated, client must authenticate itself to get the requested response
-          unlike below, clients identity is NOT known at all, no auth
+      400 Bad request - client side input fails validation
+      401 unauthorized - means unauthenticated, This means the user isn't authorized to access a resource.
+          It usually returns when the user isn't authenticated.
       403 forbidden - client does not have access rights to the content, it is unauthorized. the users identity IS known
         to the server and not the right type with access. like admin page
       404 not found - server cannot find requested resource, in the browser it means the URL is not recognized, in the api
         it can mean the endpoint is valid, but the resource itself does not exist.
         usually used in place of 403 error to hide existence of the admin page/ or resource from unauthorized clients.
       429 Too many request - user sent too many request in given time ( rate limiting)
-      500 internal server error - The server has encountered a situation it does not know how to handle.
+      500 internal server error - The server has encountered a situation it does not know how to handle. generic server error
       502 bad gateway - while the server working as a gateway to get a response, got an invalid response
       503 service unavailable - server is not ready to handle the request, server down for maintenance that is overloaded
       504 gateway timeout - server is acting as a gateway and cannot get a response in time
@@ -273,7 +272,10 @@ const {getPeople, getPerson} = require('../controllers/person.js')
             api/query/?name=phone
         -> we access the query data object
             const name = req.query.name.toLowerCase()
-
+        -> see pagination in sqlNotes.js route/people?page=2
+                                                                                                              https://stackoverflow.com/questions/6855624/plus-sign-in-query-string
+        when we want to get special characters in a query, like a + sign for sorting up or down. we need url encoding https://www.w3schools.com/tags/ref_urlencode.asp
+            http://example.com/articles?sort=+author,-datepublished  -> sort=+author,  means ascending
 
 
       when we do router.post() request, we are receiving json data in the server, to use this data we need the json middleware
@@ -322,6 +324,9 @@ const {getPeople, getPerson} = require('../controllers/person.js')
             and easy to setup hosting for our backend express api, but as we get more users and need to scale, our server cost on digitalocean can be 4x as much
             as learning to set up our own server on hetzner or linode.
 
+        cache-control -headers , this lets us use the users storage to store our images and website files, so we don't hit or cdn or server every time
+            -> that would waste bandwidth. this is not for the backend really, unless we use ssr, https://www.keycdn.com/support/cache-control
+              -> if we use cdn and platform to host our spa website, it will handle the nginx server cache-control settings for us
 
         new route files - we see the app.js file imports our index.js and users.js, inside users.js, all routes start with /users
                 const usersRouter = require('./routes/users');
@@ -338,6 +343,26 @@ const {getPeople, getPerson} = require('../controllers/person.js')
             regex in routes - can be catfish, or dogfish..
                 app.get(/.*fish$/, function (req, res) {
                 });
+
+
+        best practices api design -
+            1) our content-type header should automatically be in json
+            2) routes should be NOUNS not verbs, our http request are the verbs.. GET, POST, PUT, DELETE.
+            3) use logical nesting on endpoints  -> group those that contain associated information
+                  app.get('/articles/:articleId/comments'
+              -> to get the author of a comment, we might look at a deeply nested route
+                   /articles/:articleId/comments/:commentId/author
+              -> this becomes too much to handle, so we can make another users route to get the author
+                  "author": "/users/:userId"
+              pagination: look at sqlNotes, we can use query's to sort as well http://example.com/articles?sort=+author,-datepublished
+
+            4) maintain security, use ssl, have authorization in middleware for all routes, limit user privileges
+            5) use cache to limit hits to the api, save resources,  something like redis, or https://www.polyscale.ai/ we've found that is very easy
+            6) versioning, should be at the start of the endpoint '/v1/employees'
+
+
+
+
 */
 
 router.get('/', function(req, res,) {
@@ -346,10 +371,10 @@ router.get('/', function(req, res,) {
 });
 
 
+router.get('/page' , getPage )
 
 router.get('/people/:limit' , getPeople)
 
 router.get('/person/:id' , getPerson)
-
 
 module.exports = router;

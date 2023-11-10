@@ -557,6 +557,58 @@ SQL CODE:
             + - addition, - Subtraction, * multiplication, / division, % modulus remainder
             round(x, d) rounds x value to d decimal places.. omit d for simple round, sqrt(x) square root
 
+        Pagination - in mongodb we used .skip() for amount of pages to skip, and limit() to limit number of rows per page
+                Offset - says to skip that many rows before beginning to return rows. OFFSET 0 -> is the same as omitting offset
+                Limit - limit the number of rows we get returned
+                *mongodb
+                    //if there is no query 'p', we default to zero. p is page number
+                      const page  = req.query.p || 0;
+                      const peoplePerPage = 4;
+                      let people1 = []
+                   //user picks what page, then skip x number per page -> now limit to the page number limit above
+                      const data = await db.collection('people').find().skip(page * peoplePerPage).limit(peoplePerPage).forEach(person => people1.push(person))
+                      res.status(200).json(people1)
+
+                *postgres pagination -> the concept above is shown because it is similar to what we will be doing, we want the user to pick a page inside query 'p'
+                            -> then we pick amount of rows per page -> offset the 'peoplePerPage' amount * page -> now limit to 'peoplePerPage'
+                        * we will look into more ways besides offset, because OFFSET can be slow, as it needs to count 100k rows or so, just to get to our page
+                            -> and only access 10 records. if we have 100k rows or a lot of data, this can take many seconds to read over
+
+                         Solution - we need some sort of column that is sortable and unique, like created_date_time, because uuid is only random in no order https://www.youtube.com/watch?v=WDJRRNCGIRs&t=535
+                            -> once we get the first page with 10 rows, we get the created_date_time from the last record in this page. now next time
+                            -> simply sort and filter out all rows below the previous column value.. now our database doesn't need to search 100k records. it's filtered!
+                                SELECT title, id FROM news ORDER BY id DESC LIMIT 10   -> page 1
+                                SELECT title, id FROM news WHERE id < 10909008 ORDER BY id DESC LIMIT 10
+                            -> with knex
+                                await knex('news').select('title', 'id').where('id', '<', '10909008').orderBy('id', 'desc').limit(10)
+
+                         offset based pagination example: only for LOW amount of records, will make database read all records to offset unlike above solution
+                                '/people?page=3'
+                              const page  = req.query.page || 0;
+                              const rowsPerPage = 10;
+
+                              const data = await knex('people').select('*').orderBy('sortable_column_here').offset(page * rowsPerPage).limit(rowsPerPage)
+                              res.status(200).json(data)
+
+                          Cursor pagination: we must make a request to tell the db whether to get rows before or after it, this is faster than offset,
+                                -> because now, we've filtered all rows before our page we don't need to read, where offset has to read all rows.
+                                 * sort users only by a unique sequential column, such as uuid's, usernames , emails, timestamp, creation_time..
+
+                                -> here we see the time difference, as records go up, offset gets MASSIVELY slower, where as cursor always stays fast https://medium.com/swlh/how-to-implement-cursor-pagination-like-a-pro-513140b65f32
+                                    -> many times, we can be completely fine with offset, because our users will mostly see the first pages anyways! until we have 100k records
+                                    SELECT title, id FROM news WHERE id < 10909008 ORDER BY id DESC LIMIT 10
+
+                                How it works - were making a GET request with cursor in the req.body, remember our response is with data from our db  https://betterprogramming.pub/understanding-the-offset-and-cursor-pagination-8ddc54d10d98
+                                    -> we will send the last item on the page and the first, inside a cursor object with the request.
+                                    -> theoretically, instead of query search, we could put page number and rowsPerPages in the req.body and leave query blank..
+                                    -> but we will use query for pages and rowsPerPage, while request is strictly for the last/first id,email,username.. to find our spot
+                                    -> our request body data
+                                        “cursor”: {
+                                            “previous_page”: "prev___Crouch" ,
+                                            “next_page”: "next___Dumbledore"
+                                        }
+
+
 
 
         Neon.tech postgres database serverless pricing -
