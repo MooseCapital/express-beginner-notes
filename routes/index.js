@@ -266,6 +266,8 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
 
         **Params are for REST parameters, which identify the resource being requested.
             Query parameters are used for search parameters that don't directly identify the resource, such as keywords.
+        params must be a-zA-Z or 0-9, letter and number, and _ underscore, no symbols in parameters!
+
 
     Query - is mostly used for searching,sorting, filtering, pagination.. a query could replace a param, BUT we won't because you can use a query in addition
             -> to a dynamic parameter
@@ -343,6 +345,24 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
             regex in routes - can be catfish, or dogfish..
                 app.get(/.*fish$/, function (req, res) {
                 });
+
+            our await database call should always be in try..catch block so our error can flow to our catch statement, otherwise, it's not handled
+
+            Route Examples:
+                Home/index page
+                  '/catalog'
+                list of books, objects etc.
+                  'catalog/<objects>/'
+                get specific book, or item by id field info
+                  'catalog/<object>/:id'
+                form to create new book/item
+                  'catalog/<object>/create'
+                update specific item by id
+                  'catalog/<object>/<id>/update'
+                delete specific item by id
+                  'catalog/<object>/<id>/delete'
+
+
 
 
         best practices api design -

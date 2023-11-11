@@ -39,7 +39,7 @@ const getPage = (async (req, res) => {
       const id = req.params.id;
       const page  = req.query.page || 0;   // normalize it with req.query.name.toLowerCase() if query is text
       const rowsPerPage = 10;
-      const body = req.body.request;
+      const body = req.body;
         try {
           /* if (!validator.isUUID(id, [4])) {
             return res.status(500).json({msg: 'that is the wrong id'})
