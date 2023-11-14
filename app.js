@@ -3,9 +3,11 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
-
+const cors = require('cors')
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
+const storeRouter = require('./routes/store');
+const {mainLimiter} = require("./rateLimits");
 
 const app = express();
 
@@ -13,17 +15,24 @@ const app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
+// myLogger is a custom version of logger, we don't need it
 // app.use(myLogger)
 //logs request to server
-app.use(logger('dev'));
+if (app.get('env') === 'production') {
+  app.use(logger('combined'));
+} else {
+  app.use(logger('dev'));
+}
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(cors())
 
 
-
-
+//if we want to customize rate limits on routes, put the routes above the limiter middleware, otherwise leave below for main limiter
+app.use(mainLimiter)
+app.use('/store', storeRouter);
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
@@ -38,6 +47,9 @@ app.use(function(req, res, next) {
 
   next(); // THIS IS IMPORTANT!
 } */
+
+
+
 
 // error handler
 app.use(function(err, req, res, next) {

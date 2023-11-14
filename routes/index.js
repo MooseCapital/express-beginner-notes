@@ -310,7 +310,7 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
 
 
 
-        promise.All - so far each request has made 1 await request to our db, but if we are running multiple calls that don't depend on eachother, we want those to start at
+        promise.All - so far each request has made 1 await request to our db, but if we are running multiple calls that don't depend on each-other, we want those to start at
             -> the same time, not start after one finished.. so promise.all will start them, then once ALL are done, we get a response.
             const [resultFunction1, resultFunction2] = await Promise.all([
                  functionThatReturnsPromise1(),
@@ -362,6 +362,9 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
                 delete specific item by id
                   'catalog/<object>/<id>/delete'
 
+        Dates - we may need to parse dates from our db, or make sure we are on the right timezone and location calender, luxon helps with this
+                https://www.npmjs.com/package/luxon
+                const { DateTime } = require("luxon");
 
 
 
@@ -379,6 +382,82 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
             4) maintain security, use ssl, have authorization in middleware for all routes, limit user privileges
             5) use cache to limit hits to the api, save resources,  something like redis, or https://www.polyscale.ai/ we've found that is very easy
             6) versioning, should be at the start of the endpoint '/v1/employees'
+
+      Production - when putting our project into production mode from dev, we need to change some settings and security https://expressjs.com/en/advanced/best-practice-performance.html
+              -> the production environment might include reverse proxy, load balancer
+              Environment variables - set NODE_ENV='production'  in our .env file, it defaults to development whether we set it or not.
+                  -> this can speed up our app by 3x, to make sure it is on, we can start the server this way
+                    NODE_ENV=production node app.js
+                  -> we must make sure our app is using our production database link, separate from dev. and that are production db has safe roles
+
+                logging - we need to keep the morgan logger in production, it logs each request and we can make a logger file here https://github.com/expressjs/morgan#write-logs-to-a-file
+                    this custom code inside app.js will help us with production logger, production gives us date/time of request!
+                      if (app.get('env') === 'production') {
+                        app.use(logger('combined'));
+                      } else {
+                        app.use(logger('dev'));
+                      }
+                    -> we should use the logger above and remove all console.log() statements that can affect performance
+
+                cors - use helmet to protect against attackers https://www.npmjs.com/package/helmet
+                rate limit - we should limit the times users can call our api to prevent attacks https://www.npmjs.com/package/express-rate-limit
+                security - https://expressjs.com/en/advanced/best-practice-security.html
+
+      rate limiting - https://blog.logrocket.com/rate-limiting-node-js/
+            -> we must use rate limiting to prevent spam, ddos, and attacks,
+            *** our limiter must be above the app.use route files like app.use('/', indexRouter);
+              const {rateLimit} = require('express-rate-limit');
+              const limiter = rateLimit({
+                windowMs: 60 * 1000, // 15 minutes
+                limit: 2, // Limit each IP to 100 requests per `window` (here, per 15 minutes).
+                standardHeaders: true, // draft-6: `RateLimit-*` headers; draft-7: combined `RateLimit` header
+                legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
+                message: 'you are doing that too much, wait 5 minutes and try again',
+
+                // store: ... , // Use an external store for consistency across multiple server instances.
+            })
+            app.use(limiter)
+            app.use('/', indexRouter);
+
+          -> if we want custom limiters for each route, we should NOT set it in app.js for all routes. we probably want
+          -> a different limit for forget password, and regular api calls. etc..
+          -> we can put the main limiter below some routes files to make it not useable on that folder.
+            app.use('/store', storeRouter);
+            app.use(limiter)
+            app.use('/', indexRouter);
+            app.use('/users', usersRouter);
+          -> here the limiter does not apply to any routes inside the store file, so inside store I can create my own individual one
+          -> we should create a new file to hold all limiters then import in app.js and all routes that need it, but for example
+          -> i made it inside store.js, and this is how we use middleware in routes, testLimiter is the limiter, and test is the controller function
+          router.get('/test' ,testLimiter, test)
+
+
+      Forms -   for the frontend in react, we will use react-hook-forms or formik with mui
+            -> The will be uncontrolled by default, so we need validation, we will try yup first, if it fails, then zod
+            -> this form will have a submit function, and a post request link, which will be our expressjs backend that handles the request.
+            -> we must always remember, we validate on the frontend, then again on the backend for safety. then trim and lowercase anything NOT a password, for standard format.
+
+            React form: post should always be used for changes in the db, GET should be used for things like search
+            -> we use novalidate, to turn off html validation, so zod validates only.
+                <form noValidate action="/link_here/" method="post">
+                  <TextField
+                    name="email"
+                    label="Email"
+                    required
+                    placeholder="example@mail.com"/>
+                </form>
+
+
+      Connecting frontend - in react, we will be using fetch with the http routes we know, GET, POST, PUT, DELETE..
+          -> to do this we need a link to our express backend routes, but we should make this dynamic because if our server goes down
+          -> we can move it over to a new link possibly, where the routes will be the same, so we use an env variable in vite/react
+          -> this is a bit different than in nodejs, inside .env file
+               VITE_API_LINK="http://localhost:3000"
+          -> to access our .env variables in vite:
+               import.meta.env.VITE_API_LINK
+          *** These secrets get exposed to the client, so they are NOT safe at all, just a place to hold a stable value like state, api keys
+              -> should NOT go here, our host should have a place to put our secrets for us. this is only fine for development
+
 
 
 

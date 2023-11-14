@@ -6,6 +6,7 @@ const getPeople = (async (req, res) => {
     try {
       let dataArr = [] //array for multi records search in db
       //get validation for the param uuid
+
       const data = await knex('people').select('*').limit(req.params.limit);
       console.table(data)
       res.status(200).json(data)
