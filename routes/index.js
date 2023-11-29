@@ -304,9 +304,10 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
               --> always check for optimized package alternatives, this generates uuid's 20x faster than normal package
 
             cacheable-lookup : https://www.npmjs.com/package/cacheable-lookup
-              --> our routes search in the domains, when searches the dns every time for each request, if we cache that, then we save dns time, even though it
-                  -> should be very fast
-
+              --> in our server can do can axios/fetch request like in react, so our api can call other apis, when we do this, our server
+              -> looks at the domain and gets the ip address the nameserver points to. cacheable lookup says
+              -> if we are making lots of request in our api to another domain, why not just cache the ip it must request each time
+              -> even though name servers or 'dns' managers are very fast, this could save some time if we make lots of calls
 
 
 
@@ -459,7 +460,40 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
               -> should NOT go here, our host should have a place to put our secrets for us. this is only fine for development
 
 
+      CORS - when we make a request on the frontend to backend, and our api is NOT on the same domain like www.website.com/api we make cross origin request
+              https://expressjs.com/en/resources/middleware/cors.html
+              -> we could have our api on the same website, under a subdomain, which cors sees as completely separate.. api.website.com or apiwebsite.com
+              -> we might consider using website.com/api so we don't need any cors, the website would be making request on the same domain
 
+            configuring cors:
+              const cors = require('cors')
+            -> we use the website that is accessing cors below, for now it is the EXACT localhost port, future it might be api.oursite.com
+              -> we can add multiple sites within an array
+              corsOptions = {
+              origin: ['http://localhost:5173','http://localhost:4173'],
+              optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+            }
+              app.use(cors(corsOptions))
+
+      Helmet - helmet secures our Express.js server while cors allows us to make request from a different website than our server is hosted on
+          -> express says helmet should almost be required for production security
+              npm i helmet
+
+              const helmet = require('helmet');
+              app.use(helmet());
+
+
+    Authentication - we have many options for this, some require us to have our own postgres db or they manage it for us, either way we will have our own rest api
+        -> using express which we can either manage in our own vps or use digital ocean app platform at first until it gets expensive
+
+        managed database platforms with auth are things like supabase, appwrite.io, directus.io,
+            -> now we could self host these but some users report issues with supabase as they want to sell their own, but we can always try to self host appwrite or directus
+
+        we can have our own postgres db and implement auth with things like keycloak, lucia auth, express-cookie..
+
+        our own database where a service manages users only for us like firebase auth, clerk, auth0
+            -> the main difference with this is we will NOT use this as our main apps databse with the users info, only auth
+            -> and above with supabase, it's auth and a whole postgres database for everything.
 
 
 */

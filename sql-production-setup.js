@@ -21,53 +21,80 @@ sudo -e pg_hba.conf
 
 //------------ SKIP THIS PART UNTIL POSTGRES JDBC ADDS SCRAM - END -----------//
 
-sudo -u postgres psql
 
-# in psql:
-create role $ROLE_LOCAL login createdb;
-\password $ROLE_LOCAL
-create role $ROLE_REMOTE login;
-\password $ROLE_REMOTE
+--connect to psql or run with db connected
 
-create database $DB owner $ROLE_LOCAL encoding "utf8";
-\connect $DB $ROLE_LOCAL
+--in psql: *** must type in passwords below
+create role adminmooselocal login createdb password 'i7Vp0H0bArQrwZvMbDfX';
+create role safemoose login password 'U26zHJ9B0Pl9IQVzDPag';
+create role readonlymoose login password 'p6pb0VxYCQ69TpC0Fs4S';
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-# Create all tables and objects, and after that:
+create database maindb owner adminmooselocal encoding "utf8";
+\connect maindb adminmooselocal
 
-\connect $DB postgres
+-- Create all tables and objects, and after that:
 
-revoke connect on database $DB from public;
+\connect maindb postgres
+
+--revoke connect on database maindb from public;
 revoke all on schema public from public;
 revoke all on all tables in schema public from public;
 
-grant connect on database $DB to $ROLE_LOCAL;
-grant all on schema public to $ROLE_LOCAL;
-grant all on all tables in schema public to $ROLE_LOCAL;
-grant all on all sequences in schema public to $ROLE_LOCAL;
-grant all on all functions in schema public to $ROLE_LOCAL;
+--local only user with all privileges
+grant connect on database maindb to adminmooselocal;
+grant all on schema public to adminmooselocal;
+grant all on all tables in schema public to adminmooselocal;
+grant all on all sequences in schema public to adminmooselocal;
+grant all on all functions in schema public to adminmooselocal;
 
-grant connect on database $DB to $ROLE_REMOTE;
-grant usage on schema public to $ROLE_REMOTE;
-grant select, insert, update, delete on all tables in schema public to $ROLE_REMOTE;
-grant usage, select on all sequences in schema public to $ROLE_REMOTE;
-grant execute on all functions in schema public to $ROLE_REMOTE;
+--normal external user with select, update, insert
+grant connect on database maindb to safemoose;
+grant usage on schema public to safemoose;
+grant select, insert, update on all tables in schema public to safemoose;
+grant usage, select on all sequences in schema public to safemoose;
+grant execute on all functions in schema public to safemoose;
 
-alter default privileges for role $ROLE_LOCAL in schema public
-    grant all on tables to $ROLE_LOCAL;
+--read only user
+grant connect on database maindb to readonlymoose;
+grant usage on schema public to readonlymoose;
+grant select on all tables in schema public to readonlymoose;
+grant usage, select on all sequences in schema public to readonlymoose;
+grant execute on all functions in schema public to readonlymoose;
 
-alter default privileges for role $ROLE_LOCAL in schema public
-    grant all on sequences to $ROLE_LOCAL;
+--admin local user
+alter default privileges for role adminmooselocal in schema public
+    grant all on tables to adminmooselocal;
 
-alter default privileges for role $ROLE_LOCAL in schema public
-    grant all on functions to $ROLE_LOCAL;
+alter default privileges for role adminmooselocal in schema public
+    grant all on sequences to adminmooselocal;
 
-alter default privileges for role $ROLE_REMOTE in schema public
-    grant select, insert, update, delete on tables to $ROLE_REMOTE;
+alter default privileges for role adminmooselocal in schema public
+    grant all on functions to adminmooselocal;
 
-alter default privileges for role $ROLE_REMOTE in schema public
-    grant usage, select on sequences to $ROLE_REMOTE;
+--normal user
+alter default privileges for role safemoose in schema public
+    grant select, insert, update on tables to safemoose;
 
-alter default privileges for role $ROLE_REMOTE in schema public
-    grant execute on functions to $ROLE_REMOTE;
+alter default privileges for role safemoose in schema public
+    grant usage, select on sequences to safemoose;
 
-# CTRL+D*/
+alter default privileges for role safemoose in schema public
+    grant execute on functions to safemoose;
+
+-- read only user
+alter default privileges for role readonlymoose in schema public
+    grant select on tables to readonlymoose;
+
+alter default privileges for role readonlymoose in schema public
+    grant usage, select on sequences to readonlymoose;
+
+alter default privileges for role readonlymoose in schema public
+    grant execute on functions to readonlymoose;
+
+
+
+
+
+
+*/

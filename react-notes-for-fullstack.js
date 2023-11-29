@@ -69,13 +69,52 @@
                             </>  }</article>
 
 
+        8) custom hooks, don't be afraid to make them and use them, we need custom hooks to avoid duplication when using the same code, like get fetch.
+            -> and we reduce the lines in each component, no more scrolling 50 lines down, it's much cleaner!
+
+                    function userScrollPosition(pageName) {
+                        const [userEvent, setUserEvent] = useState(JSON.parse(sessionStorage.getItem(pageName)) || 1);
+
+                        useEffect(() => {
+                            sessionStorage.setItem(pageName, JSON.stringify(userEvent))
+                            return () => {
+                            }
+                        },[userEvent])
+
+                        useEffect(() => {
+                            let subscribed = true;
+                            handleUserEvent = () => {
+                                setUserEvent(prevState => window.scrollY)
+                            }
+                            try {
+                                if (subscribed) {
+                                    window.addEventListener("scroll", handleUserEvent)
+                                }
+                            } catch (e) {
+                                console.log(e)
+                            }
+                            return () => {
+                                console.log("clean up function")
+                                window.removeEventListener("scroll", handleUserEvent)
+                                subscribed = false;
+                            }
+                        }, [])
+                        return [userEvent, setUserEvent]
+                    }
+                    export {userScrollPosition}
+
+                -> in the component using our custom hook:
+                    const [userEvent, setUserEvent] = userScrollPosition('about-page')
 
 
 
-
-
-
-
+            9) use most up-to-date state with prev always!, we know using an interval breaks and skips numbers unless we clean up the interval.
+                -> and it happens because if we simply setCount(count+1) -> we don't get the most up to date interval, so it messes up
+                        useEffect(() => {
+                          setInterval(() => {
+                                setCount(prevState => prevState + 1)
+                          },1000)
+                        },[])
 
 
 
@@ -107,6 +146,81 @@
                 https://www.w3schools.com/jsref/prop_win_sessionstorage.asp
             *when deciding to use something like sessionStorage, or a cache, like https://polyscale.ai/ , it depends on if our data is the same to everyone like a message board
                 -> but user specific data won't benefit as much, so for this we can use sessionStorage.
+
+            react-query vs redux - since query is a server cache state tool, while redux is local state management, these work together, since react-query manages api calls
+                -> and caches them for us, then re-renders the component, so local values, non api, aren't much use. but as we have seen, some reddit users said
+                -> they try and use react-query for one size fits all and keep most of their state on the server side https://tanstack.com/query/v4/docs/react/guides/does-this-replace-client-state
+                * if we are unable to use react-query as global state, and server only cache, it seems we will need redux or context again.
+
+
+            Simple option - as we saw redux was not easy to use at all, the option to prevent losing state on route changes are move it up to app.jsx.. BUT this could mean
+                -> lots of prop drilling, so we can try react-query, if query doesn't work out. we have another option we knew all along.. sessionStorage.
+
+                we put state at the local component level -> we click another route and our state disappears -> now we must refetch our db which cost us money :(
+                OR, we simply hold those states in sessionStorage, so when we click back, we don't build a new state, we simply get the values from storage
+                -> now it's not held at the app.jsx level, it's in local components, and we prevented a database call AND we use this on refreshes as well!!
+                        const [testingComp, setTestingComp] = useState(JSON.parse(sessionStorage.getItem("testingComp")) || {
+                                fetchData: null,
+                                loading: true,
+                                fetchRan: false,
+                                count: 0
+                            });
+
+                        useEffect(() => {
+                            sessionStorage.setItem("testingComp", JSON.stringify(testingComp))
+                            return () => {
+                            }
+                        },[testingComp])
+
+
+        Fetch vs axios in react - https://blog.logrocket.com/axios-vs-fetch-best-http-requests/    https://blog.logrocket.com/how-to-make-http-requests-like-a-pro-with-axios/#monitoring
+            Axios has some features fetch does not have in react, and we need a polyfill for the 3% of users with old browsers that don't have fetch built in.
+
+            Axios does not only give the server response like fetch, it responds with the headers content type, the content-length of our data in bytes..
+                the request state object, status code, and of course a property with our data array
+
+            1) when we make a get request, content-type defaults to application/json, charset=utf-8, so we don't need to configure further for all request
+                const axiosResponse = await axios.get(`${import.meta.env.VITE_API_LINK}/store/test`)
+                console.log(axiosResponse.data)
+
+                -> post request auto convert to json as well! if we only put text, it sets content-type to text instead of application/json
+                    await axios
+                      .post('localhost:3000/api', {name:'bob'}, {
+                        headers: {
+                          Accept: "application/json",
+                          "Content-Type": "application/json;charset=UTF-8",
+                        },
+                      })
+
+            2) response timeout - if we want to abort a request on error, we use abort controller like in fetch, but our error did not flow to our catch statement
+                -> in the actual request we put timeout to say how long to ask for a response before cancel.
+                    timeout: 4000
+                -> so we need to put our own axios.interceptor error handler here
+                axios.interceptors.response.use(
+                    (response) => response,
+                    (error) => {
+                        if (error.code === "ERR_CANCELED") {
+                            console.error('request canceled')
+                            return Promise.resolve({status: 499})
+                        }
+                        return Promise.reject((error.response && error.response.data) || 'Error')
+                    }
+                );
+
+            3) we can get download progress of file with axios easily, where we can't with fetch
+
+            4) simultaneous request like promise.all() -> axios can start many request at one time
+                axios.all([
+                  axios.get('https://api.github.com/users/iliakan'),
+                  axios.get('https://api.github.com/users/taylorotwell')
+                ])
+
+
+
+
+
+
+
 
 */
 
