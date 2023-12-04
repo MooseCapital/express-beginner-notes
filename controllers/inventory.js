@@ -67,21 +67,13 @@ const scrapeJackpot = (async (req, res) => {
             await page.goto('https://www.mslottery.com/games/mm5/');
             await page.setViewport({width: 1080, height: 1024});
             const jackpotElement = await page.waitForSelector('.currentjackpot-number', { visible: true });
-            await page.waitForNetworkIdle({ idleTime: 3000 })
-            const jackpotDataString = await jackpotElement?.evaluate((el) => el.textContent)
+            await page.waitForNetworkIdle({ idleTime: 0 })
+            const jackpotDataString = await page.$eval('.currentjackpot-number',(el) => el.textContent)
             let regex = /\d+/g;  // \d+ matches one or more digits
             let jackpotNumString = jackpotDataString.match(regex);
             let jackpotNumber = Number(jackpotNumString[0]) * 1000;
             console.log({jackpot_number: jackpotNumber});
-            await page.waitForTimeout(3000);
-
-        //scrape winners
-            await page.goto('https://www.mslottery.com/browse-winning-numbers/?game=mm5');
-            await page.setViewport({width: 1080, height: 1024});
-            const openButtonWait = await page.waitForSelector('.col-winners .open', { visible: true });
-            await page.waitForNetworkIdle({ idleTime: 3000 })
-            page.click('.col-winners .open', clickOptions)
-
+            await page.waitForTimeout(0);
 
         // const data = await knex('')
         // console.table(data)
@@ -98,21 +90,28 @@ const scrapeWinners = (async (req, res) => {
     try {
         const browser = await puppeteer.launch({headless: 'new'});
         const page = await browser.newPage();
-        await page.goto('https://www.mslottery.com/browse-winning-numbers/?game=mm5');
-        await page.setViewport({width: 1080, height: 1024});
-        const jackpotElement = await page.waitForSelector('.currentjackpot-number');
-        const jackpotDataString = await jackpotElement?.evaluate((el) => el.textContent)
-        let regex = /\d+/g;  // \d+ matches one or more digits
-        let jackpotNumString = jackpotDataString.match(regex);
-        let jackpotNumber = Number(jackpotNumString[0]) * 1000;
+        //scrape winners
+            await page.goto('https://www.mslottery.com/browse-winning-numbers/?game=mm5');
+            await page.setViewport({width: 1080, height: 1024});
+            const openButtonWait = await page.waitForSelector('.numbers-table .col-winners .open', { visible: true });
+            await page.waitForNetworkIdle({ idleTime: 0 })
+            await page.click('.col-winners .open',{count:1})
+            const waitWinnersElements = await page.waitForSelector('.popup-content .numbers-table-tr .col-winners', { visible: true });
+            // await page.waitForNetworkIdle({ idleTime: 3000 })
+                console.log('found winners')
 
-        console.log(typeof jackpotNumber);
-        console.log({jackpot: jackpotNumber});
 
-        // const data = await knex('')
-        // console.table(data)
+            const winnersElements = await page.$$eval('.popup-content .numbers-table-tr .col-winners',elements => {
+             return elements.map(el => {
+                let regex = /\d+/g;  // \d+ matches one or more digits
+                 return Number(el.textContent.match(regex)[0])
+                 })
+             })
+
+            console.log(winnersElements)
+        console.log(typeof winnersElements[0])
         await browser.close();
-        return res.status(200).json({msg: `the jackpot is: ${jackpotNumber}`})
+        return res.status(200).json({msg: winnersElements})
     }
     catch (e) {
         console.log(e)

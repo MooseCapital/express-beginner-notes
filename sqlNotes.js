@@ -812,10 +812,19 @@ SQL CODE:
                             UPDATE accounts_table SET balance = balance + 1000 WHERE id = 2;
                             SELECT id, name, balance FROM accounts;
                         COMMIT TRANSACTION;
+
+                        ** note we combine node and pg to make conditions to rollback the transaction. if we throw an error on a condition below, then we never commit
+                            -> the beautiful part of this, is we can make many conditions that throw an error when we want. this does NOT rollback itself
+                            -> these thrown errors flow to our catch block, since trx.rollback() is in our catch block. now it rollback because, if not, we'd need a
+                                -> rollback() in every single if statement! phew, way to make it easy
                     -> knex format
                         const trxProvider = knex.transactionProvider();
                         const trx = await trxProvider();
                         const ids = await trx('people').where('age', '>',50).update('is_old',TRUE)
+
+                        if(value < 0) {
+                            throw new Error('Balance is negative, rolling back transaction')
+                        }
                         trx.commit()
                         catch {
                             trx.rollback()
@@ -961,6 +970,58 @@ SQL CODE:
                     5) use an ORM layer like knex, the ORM will map database results to objects and this prevents many explicit sql queries
                     6) don't rely on blocklisting like blocking users, some keywords and chars can be real names.
                     7) stored database procedures are not safe by default. can be vulnerable to injections when implemented wrong. check docs if we need.
+
+
+          returning in knex - specifies which column should be returned by the insert, update, delete methods https://knexjs.org/guide/query-builder.html#returning
+                -> when we select, we get data back, when we do crud operations like above.. we just get a 1 or 0 if it worked or failed
+                -> this isn't useful, so on updates, we want to return the updated data like a select would
+
+                the returning, can contain a single value column in quotes or an array of column values
+                    knex('books').returning(['id','title']).insert({title: 'Slaughterhouse Five'})
+
+                -> our transaction returns all columns. Note this returns an array, since we usually update, create, delete 1 record at a time
+                    -> we can almost always use data[0] to only get the first record -> which is probably the only one, unless were selecting, which won't be returning!
+                    const data = await trx('people').where({id: id }).update({favorite_color: 'yellow' }).returning('*')
+                    console.log(data[0])
+
+
+        junction table - this is how we link up 2 tables to form a many to many relationship and prevents us from repeating ourself,
+                -> without this junction table or 'linking' table in table 2, would repeat its column values over and over for each new row from table 1
+                -> the table uses foreign keys, and references the values from table 1 & 2. we can put this in one line
+
+                -> a standard would be combining table 1 & 2's names like: grocereries_categories
+                CREATE TABLE junction_table (
+                    table1_uuid UUID REFERENCES table1(uuid),
+                    table2_uuid UUID REFERENCES table2(uuid),
+                    PRIMARY KEY(table1_uuid, table2_uuid)
+                );
+
+            -> when table one needs its column value that we stored in a junction or linking table, we just make a join between both tables, now we haven't repeated ourself!!
+
+            *** to determine if we need a junction table in the middle of 2 tables, we need to ask ourself if we have one to many, or many to many relationship
+
+              -> if each user can have multiple notes, but each note is associated with only one user, then we can simply use a foreign key in the notes table
+                    -> that references the user id in table 1, the users table. this creates a one to many relationship between users and notes
+                    CREATE TABLE users (
+                        id UUID PRIMARY KEY,
+                        -- other columns for user information
+                    );
+
+                    CREATE TABLE notes (
+                        id UUID PRIMARY KEY,
+                        user_id UUID REFERENCES users(id),
+                        note_text TEXT
+                        -- other columns for note information
+                    );
+
+                -> you only need a junction table if you had a many-to-many relationship, if each note had multiple users. we would make something like this junction below
+                    CREATE TABLE users_notes (
+                    users_uuid UUID REFERENCES users(uuid),
+                    notes_uuid UUID REFERENCES notes(uuid),
+                    PRIMARY KEY(table1_uuid, table2_uuid)
+                );
+
+
 
 
 

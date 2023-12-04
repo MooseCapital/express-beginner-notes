@@ -492,7 +492,7 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
         we can have our own postgres db and implement auth with things like keycloak, lucia auth, express-cookie..
 
         our own database where a service manages users only for us like firebase auth, clerk, auth0
-            -> the main difference with this is we will NOT use this as our main apps databse with the users info, only auth
+            -> the main difference with this is we will NOT use this as our main apps database with the users info, only auth
             -> and above with supabase, it's auth and a whole postgres database for everything.
 
 
