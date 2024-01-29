@@ -10,6 +10,9 @@ const storeRouter = require('./routes/store');
 const {mainLimiter} = require("./rateLimits");
 const helmet = require('helmet');
 const cronJobs = require('./cronJobs');
+// const session = require('express-session');
+// const passport = require('passport');
+// const LocalStrategy = require("passport-local").Strategy;
 
 const app = express();
 
@@ -21,7 +24,9 @@ corsOptions = {
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'pug');
+app.set('view engine', 'ejs');
+
+
 
 // myLogger is a custom version of logger, we don't need it
 // app.use(myLogger)
@@ -36,7 +41,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(helmet());
-app.use(cors(corsOptions))
+app.use(cors())
 
 
 

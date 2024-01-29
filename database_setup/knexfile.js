@@ -9,7 +9,6 @@ module.exports = {
     client: 'pg',
   connection: PG_CONNECTION_STRING,
   ssl: config[DB_SSL] ? { rejectUnauthorized: false } : false,
-   searchPath: ['knex', 'public'],
   },
   cockroach_config:{
     client: 'cockroachdb', // Use the PostgreSQL client

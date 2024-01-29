@@ -483,6 +483,53 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
               app.use(helmet());
 
 
+    api route design -
+        Params are for REST parameters, which identify the resource being requested.
+        Query parameters are used for search parameters that don't directly identify the resource, such as keywords. users searches
+
+
+    // using the brackets are for hierarchical nested data such as when a filter category can have multiple values
+        -> we cant easily use params because hierarchical data is not flat, so we use query strings
+        -> we also cant use query strings because we can't have multiple values for the same key
+
+            (e.g. /users/:userId/books/:bookId) -> this is a normal case where we identify the resource, not the user.
+
+        GET /books?filter[genre][fiction]=true&filter[genre][mystery]=true&filter[author]=John%20Doe
+        -> to access the above
+            const filters = req.query.filter;
+
+              if (filters) {
+                // Check if genre is specified
+                if (filters.genre) {
+                  const genreFilters = filters.genre;
+
+                  // Check if fiction is true in the genre filters
+                  if (genreFilters.fiction === 'true') {
+                    // Logic for fiction filter
+                  }
+
+                  // Check if mystery is true in the genre filters
+                  if (genreFilters.mystery === 'true') {
+                    // Logic for mystery filter
+                  }
+                }
+
+        const { filter } = req.query;
+        const postFilter = filter['post'];
+        const authorFilter = filter['author'];
+
+    Rate limiting - block users making too many request, for production: https://github.com/animir/node-rate-limiter-flexible/wiki/Redis
+         -> the issue with in memory or cluster, is if we have multiple servers, they will not share the same memory, and users can bypass limits this way
+         -> at the start we won't notice because we would only have 1 server running. but we would have 2 locations so we need a redis database for shared limiting
+         inside our code we combined the users ip + the api route to keep track of limits on each specific route
+         we can go further and set different limits based on if the user is authenticated or not
+         but usually all our routes will be protected and might not need this.
+                const rateLimiterMiddleware = (req, res, next) => {
+                   // req.userId should be set
+                   const key = req.userId ? req.userId : req.ip;
+                   const pointsToConsume = req.userId ? 1 : 30;
+                   rateLimiterRedis.consume(key, pointsToConsume)
+
     Authentication - we have many options for this, some require us to have our own postgres db or they manage it for us, either way we will have our own rest api
         -> using express which we can either manage in our own vps or use digital ocean app platform at first until it gets expensive
 
@@ -498,10 +545,13 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
 
 */
 
-router.get('/', function(req, res,) {
+router.get('/', async function(req, res,) {
   // res.render('index', { title: 'Express' });
-  res.status(200).json({msg: 'hello world'})
+  // res.status(200).json({msg: 'hello world'})
+    res.status(200).json({msg: 'hello world'})
+
 });
+
 
 
 router.get('/page' , getPage )
