@@ -519,6 +519,7 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
         const authorFilter = filter['author'];
 
     Rate limiting - block users making too many request, for production: https://github.com/animir/node-rate-limiter-flexible/wiki/Redis
+    https://github.com/animir/node-rate-limiter-flexible/wiki/Overall-example#authorized-and-not-authorized-users
          -> the issue with in memory or cluster, is if we have multiple servers, they will not share the same memory, and users can bypass limits this way
          -> at the start we won't notice because we would only have 1 server running. but we would have 2 locations so we need a redis database for shared limiting
          inside our code we combined the users ip + the api route to keep track of limits on each specific route
