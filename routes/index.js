@@ -267,7 +267,7 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
         **Params are for REST parameters, which identify the resource being requested.
             Query parameters are used for search parameters that don't directly identify the resource, such as keywords.
         params must be a-zA-Z or 0-9, letter and number, and _ underscore, no symbols in parameters!
-
+        /people/:id? -> this is optional parameter, so we can have one route and in the route we check if it exist to have many responses on 1 route.
 
     Query - is mostly used for searching,sorting, filtering, pagination.. a query could replace a param, BUT we won't because you can use a query in addition
             -> to a dynamic parameter
@@ -383,6 +383,10 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
             4) maintain security, use ssl, have authorization in middleware for all routes, limit user privileges
             5) use cache to limit hits to the api, save resources,  something like redis, or https://www.polyscale.ai/ we've found that is very easy
             6) versioning, should be at the start of the endpoint '/v1/employees'
+            7) put specific routes above generics, so the generic doesnt assume the params are for its route
+                -> if these reversed, then / would assume ip is a param for it.. and not the /ip route
+                router.get('/ip',ip)
+                router.get('/:id?' , test)
 
       Production - when putting our project into production mode from dev, we need to change some settings and security https://expressjs.com/en/advanced/best-practice-performance.html
               -> the production environment might include reverse proxy, load balancer
@@ -404,33 +408,7 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
                 rate limit - we should limit the times users can call our api to prevent attacks https://www.npmjs.com/package/express-rate-limit
                 security - https://expressjs.com/en/advanced/best-practice-security.html
 
-      rate limiting - https://blog.logrocket.com/rate-limiting-node-js/
-            -> we must use rate limiting to prevent spam, ddos, and attacks,
-            *** our limiter must be above the app.use route files like app.use('/', indexRouter);
-              const {rateLimit} = require('express-rate-limit');
-              const limiter = rateLimit({
-                windowMs: 60 * 1000, // 15 minutes
-                limit: 2, // Limit each IP to 100 requests per `window` (here, per 15 minutes).
-                standardHeaders: true, // draft-6: `RateLimit-*` headers; draft-7: combined `RateLimit` header
-                legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
-                message: 'you are doing that too much, wait 5 minutes and try again',
 
-                // store: ... , // Use an external store for consistency across multiple server instances.
-            })
-            app.use(limiter)
-            app.use('/', indexRouter);
-
-          -> if we want custom limiters for each route, we should NOT set it in app.js for all routes. we probably want
-          -> a different limit for forget password, and regular api calls. etc..
-          -> we can put the main limiter below some routes files to make it not useable on that folder.
-            app.use('/store', storeRouter);
-            app.use(limiter)
-            app.use('/', indexRouter);
-            app.use('/users', usersRouter);
-          -> here the limiter does not apply to any routes inside the store file, so inside store I can create my own individual one
-          -> we should create a new file to hold all limiters then import in app.js and all routes that need it, but for example
-          -> i made it inside store.js, and this is how we use middleware in routes, testLimiter is the limiter, and test is the controller function
-          router.get('/test' ,testLimiter, test)
 
 
       Forms -   for the frontend in react, we will use react-hook-forms or formik with mui
@@ -494,6 +472,11 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
 
             (e.g. /users/:userId/books/:bookId) -> this is a normal case where we identify the resource, not the user.
 
+        For example, you could use this format to filter on nested attributes, like filter[address][city]=NewYork.
+        This would be difficult to express with simple key-value pairs like address.city=NewYork.
+        Additionally, this format can support more complex filtering operations.
+        For example, you could use filter[age][gte]=30 to filter for ages greater than or equal to 30.
+
         GET /books?filter[genre][fiction]=true&filter[genre][mystery]=true&filter[author]=John%20Doe
         -> to access the above
             const filters = req.query.filter;
@@ -531,17 +514,100 @@ const {getPeople, getPerson, getPage} = require('../controllers/person.js')
                    const pointsToConsume = req.userId ? 1 : 30;
                    rateLimiterRedis.consume(key, pointsToConsume)
 
-    Authentication - we have many options for this, some require us to have our own postgres db or they manage it for us, either way we will have our own rest api
-        -> using express which we can either manage in our own vps or use digital ocean app platform at first until it gets expensive
+    validator - we need to validate data in many places, on the frontend and our nodejs backend
+        -> client api request, third-party api, user input form data, localstorage instead of cache, query params in the api request
+            -> since the api url params are external the user can input what they want,
+            -> so we need to ensure we have a number when we expect it
+        -> we see above, there are many external sources of data we need to validate! especially before we send it to our database
 
-        managed database platforms with auth are things like supabase, appwrite.io, directus.io,
-            -> now we could self host these but some users report issues with supabase as they want to sell their own, but we can always try to self host appwrite or directus
+        zod - we will use zod because it's much easier to import one object with everything, but this adds about 15kb to our entire package sent to our users
+            -> zod is much slower than others, so if we ever notice significant slowdowns, we should try valibot which is 4x faster
+            -> we can use zod to validate on the client and server, we will ALWAYS validate on the server for safety
+            -> this is RUNTIME dependency, so it checks while our front and backend are in production
 
-        we can have our own postgres db and implement auth with things like keycloak, lucia auth, express-cookie..
+        before, we used validator.js that made checking uuid, alpha a-z checking easy. Now we can use zod with regex patterns
+            to do the same in 1 smaller package, along with all our object schemas.
 
-        our own database where a service manages users only for us like firebase auth, clerk, auth0
-            -> the main difference with this is we will NOT use this as our main apps database with the users info, only auth
-            -> and above with supabase, it's auth and a whole postgres database for everything.
+        typescript - since this is ran at compile time and not runtime, it won't help us with outside data validation
+        option chaining - ?, since this doesn't validate types, we could be using methods on a wrong type and get another error
+                -> chaining will prevent errors when we are unsure if a property exists, but we want to send the user useful errors
+                -> and not crash our entire app
+
+        zod learning - https://zod.dev/?id=table-of-contents
+
+                primitives - we can set the string scheme in a variable then parse it or do in 1 line, if we are re-using it
+                uuid - remember this will validate uuid v1 and v4, but this is safe enough for us, even though we will never use v1
+                    since it is based on the computers mac address and not truly random
+                        const uuid = z.string().uuid();
+                        if(!uuid.parse(id)
+                    -> in 1 line
+                        if(!z.string().uuid().parse(id)
+
+                when the uuid above fails, it will parse an error that flows to our catch block, the user receives
+                        {error: 'could not get data'}
+                    -> this is not useful at all, we might want the user to know what went wrong, so we can use safeparse
+
+                parse vs safeparse - parse will throw an error, safeparse will return an object with success:true/false, the data and an error
+                    .safeParse(data:unknown): { success: true; data: T; } | { success: false; error: ZodError; }
+
+                Safeparse - now with this, we don't throw an error, but return what we want to the user in the response, of course
+                    -> we could use parse and throw the error we want, but this is better
+
+                zod is for advanced object schemas and strings, if we use it for simple number ranges then we are using processing power for no reason
+                        const limitValidate = z.number().int().min(1, {message: "the limit is too small"})
+                        .max(100, {message: "the limit is too big"}).safeParse(limit);
+                    -> we turn our long zod validator into simple if statements, first make sure the number is NOT 0, since a zero is falsy and goes past if(limit)
+
+                    ->here we cover most cases, if the user inputs no number, zero, or a number outside our range
+                        -> make sure to parse only inside the if statement, if it's not undefined or we skip over other routes
+                        -> when checking first, we never do !limit because a 0 or false will get past that
+                        const {limit} = req.query;
+                        if (limit !== undefined) { //0 can get past if(limit)
+                            const numLimit = parseInt(limit);
+                            if (isNaN(numLimit)) {
+                                return res.status(400).json({message: "That is not a number"})
+                            }
+                            if (numLimit < 1) {
+                                return res.status(400).json({message: "the limit is too small"})
+                            }
+                            if (numLimit > 100) {
+                                return res.status(400).json({message: "the limit is too big"})
+                            }
+
+                            const data = await knex('people').select('*').limit(numLimit)
+                            if (handleEmptyDatabase(res, data)) return; //check if database is empty
+                            return res.status(200).json(data)
+                        }
+
+                    -> here for a string not a number, we have different checks
+                    -> first to make sure its not undefined, then !name, checks null, NaN, false and empty strings
+                    -> next we can set minimum string length and our zod regex pattern for only lower and uppercase no symbols
+                        if (name !== undefined) {
+                            if (!name  || name.length < 1 || !z.string().regex(/^[A-Za-z]+$/).safeParse(name).success){
+                                return res.status(400).json({msg: 'that is not a valid name'})
+                            }
+
+
+
+
+
+
+
+
+    Authentication - we can build our own auth which involves password resets, cookies, magic links.. etc
+        or we can look at the many auth services that can range from $5-$20 per 1000 users, which is cheap until we have loads of free users
+        google firebase looks tempting, but google closes down many services and changed the free limit on phone verification which left a big bill to some users
+
+            supabase, directus, appwrite should be our first choice, then we could check on making keycloak, lucia auth, express-cookie,
+            or go to clerk or more expensive options if the product warrants it
+
+            supabase - at least we get a postgres database in 1, so no need for neondb or one at digitalocean/render
+
+        Auth methods -
+            user authentication - when users need to auth on our app, see all methods above. contorl based on identity rather than single api key
+            proxy API - server endpoints act as proxies, the react app sends request to our server then forwards to the external api, api key is kept secret on server
+            Api keys are for SERVER to server only, when we use a key to make a request from the client(vite react), anyone can inspect the axios call, and see
+                -> like we see here in the headers in js file: {headers:{"x-api-key":"ZKmorbO6RtKTwqBPZo75"}} found on our github
 
 
 */
