@@ -1,5 +1,4 @@
 const knex = require('../database_setup/db');
-// const AWS = require('aws-sdk');
 const {z} = require('zod');
 
 const test = (async (req, res) => {
@@ -90,6 +89,7 @@ const transactionTest = (async (req, res) => {
 
 
 
+/*
 
 const {
     S3Client,
@@ -131,8 +131,9 @@ const streamFile = (async (req, res) => {
         return res.status(500).json({Error: `Internal server error, ${e}`})
     }
 })
+*/
 
-module.exports = {getPage, test, ip, transactionTest, streamFile}
+module.exports = {getPage, test, ip, transactionTest}
 
 
 

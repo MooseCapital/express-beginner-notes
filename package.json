@@ -3,8 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "pm2 start ./bin/www",
+    "start": "node ./bin/www",
     "devstart": "nodemon ./bin/www",
+    "inspect": "node --inspect ./bin/www",
+    "pm2": "pm2 start ecosystem.config.js --env production --watch",
     "serverstart": "DEBUG=express-locallibrary-tutorial:* npm run devstart"
   },
   "dependencies": {

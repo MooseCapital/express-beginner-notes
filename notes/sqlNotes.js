@@ -818,16 +818,20 @@ SQL CODE:
                             -> these thrown errors flow to our catch block, since trx.rollback() is in our catch block. now it rollback because, if not, we'd need a
                                 -> rollback() in every single if statement! phew, way to make it easy
                     -> knex format
-                        const trxProvider = knex.transactionProvider();
+                         const trxProvider = knex.transactionProvider();
                         const trx = await trxProvider();
-                        const ids = await trx('people').where('age', '>',50).update('is_old',TRUE)
+                        try {
+                            //pick what column specifically * to return, to save data we get from the database means saving $$
+                            const data = await trx('people').where({id: id}).update({favorite_color: 'yellow'}).returning('id');
+                            if (handleEmptyDatabase(res, data)) return; //check if database is empty
+                            await trx.commit();
+                            console.log(data[0]);
+                            return res.status(200).json(data[0]);
 
-                        if(value < 0) {
-                            throw new Error('Balance is negative, rolling back transaction')
-                        }
-                        trx.commit()
-                        catch {
-                            trx.rollback()
+                        } catch (e) {
+                            console.error(e)
+                            await trx.rollback();
+                            return res.status(500).json({Error: 'Internal server error'})
                         }
 
 

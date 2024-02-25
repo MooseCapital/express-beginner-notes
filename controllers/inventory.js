@@ -1,5 +1,5 @@
 const validator = require('validator');
-const knex = require('../db');
+const knex = require('../database_setup/db');
 const puppeteer = require('puppeteer');
 
 

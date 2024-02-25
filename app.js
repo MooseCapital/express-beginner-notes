@@ -57,8 +57,8 @@ app.use(cors(corsOptions)) //only allows these links to access api
 
 //Api routes
 app.use('/', indexRouter);
-app.use('/api/v1/test', validateApiKey, testRouter);
-app.use('/api/v1/users', validateApiKey, usersRouter);
+app.use('/api/v1/test', testRouter);
+app.use('/api/v1/users', usersRouter);
 
 //run cron jobs
 cronJobs.initScheduledJobs();
