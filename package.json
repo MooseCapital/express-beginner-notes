@@ -36,9 +36,9 @@
     "pug": "2.0.0-beta11",
     "puppeteer": "^21.5.2",
     "rate-limiter-flexible": "^4.0.1",
+    "socket.io": "^4.7.4",
     "uuid-validate": "^0.0.3",
     "validator": "^13.11.0",
-    "ws": "^8.16.0",
     "zod": "^3.22.4"
   }
 }

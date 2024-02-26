@@ -1,6 +1,10 @@
 /*
     Rest api vs websocket - all request start as http, then get upgraded to websocket
+        -> HTTP request -> bounce 4 times back n forth, TCP connection is established -> the client gets  response and connection is closed
+            -> one off responses are better off with rest http request, responses are also cacheable, where websockets are not
 
+
+      websockets make a single TCP connection, then once it's open, we send data back and forth, without opening/closing more conections
         -> A websockets request will look the same as standard http request, but one difference: Upgrade: websocket header in the request.
         -> All that is needed is a component on your web server that looks for this Upgrade header on all incoming HTTP connections and,
             ->if found, it takes over the connection and turns it into a webSocket connection.
@@ -97,58 +101,62 @@
                         return;
                     }
 
-                    // If the token is valid, you can proceed with the connection upgrade
-                    wss.handleUpgrade(request, socket, head, function done(ws) {
-                        wss.emit('connection', ws, request);
-                    });
                 });
 
             -> we want to check if the path url has been used before, and does our public key/id match those
             -> if it's a new room, we add our user to it.
 
-        With an HTTP REST request, you have to first establish a TCP connection which is several back and
-        forth between client and server. Then, you send HTTP request, receive the response and close the TCP connection.
-            -> one off responses are better off with rest http request, responses are also cacheable, where websockets are not
-
-        websockets make a single TCP connection, then once it's open, we send data back and forth, without opening/closing more conections
-
-=
-
-i thought it's listening on every connected client, but then we search with a header the user who made the request sent. now we have the chatroom of the user with the header, and send it only to the other user. like we could even use wss.client.forEach to match these up and don't send to every user with this, how is ws binded different
-
-In this example, the 'message' event is bound to the WebSocket instance (`ws`) for the currently connecting client. Therefore, the callback function will only be executed when a message is received from this client.
+      cluster pm2 - since we mostly use pm2 to run our rest api, this is great to use all threads and cpu resources, instead of only one
+            -> since nodejs is single threaded. but now our app is running 4 different times on 4 threads, so a websocket
+            -> could have a user connected to one ws process, and another user in another, where we want them in the same room to chat to each-other
+            -> this is called websocket 'stickiness' we need a horizontal scaling solution, so users in different threads can communicate
+            -> socket.io will do this and let us use something like redis to store the communication across all rooms, and direct them where we need
 
 
+        Audio/Video - when data is not sent as text or strings, like our messages chat app, it's sent as files that are binary data
+            -> it would be inefficient to convert these files to text, so we need binary, then we convert that binary to a file
+            we need Buffer to do this, for example, sending an image, we might do this
+                const fs = require('fs');
+                const path = require('path');
 
- // Broadcast the message to all connected clients
-              wss.clients.forEach(client => {
-                 console.log(`client.readyState: ${client.readyState}`)
-                 console.log(`WebSocket.OPEN: ${WebSocket.OPEN}`)
-                 if (client.readyState === WebSocket.OPEN) {
-                     console.log(`Received: ${message}`);
-                     client.send(`Received: ${message}`);
-                 }
-             });
+                ws.on('message', (message) => {
+                    if (Buffer.isBuffer(message)) {
+                        const b = Buffer.from(message)
+                        console.log(b.toString())
+                    } else {
+                        console.log(`Received: ${message}`);
+                        ws.send(`Received: ${message}`);
+                    }
+                });
 
-//instead of storing ws for each client and binding send from that, we can search each client
-    and just send to clients that match the requested key, and send to users in the room with matching key
-wss.clients.forEach(client => {
-    //find which room contains the user with, request api-key
-    const currentRoom = chatRooms.find(room => room.user1.userID === req.headers['x-api-key'] || room.user2.userID === req.headers['x-api-key']);
-    //match the client api-key to the room, so we only send to the rooms users
-    client.forEach(client => {
-        if (client['api-key'] === currentRoom.user1.userID || client['api-key'] === currentRoom.user2.userID) {
+
+
+
+
+ws save:
+wss.on('connection', (ws, req) => {
+
+        ws.on('open', () => {
+            // console.log(req)
+            console.log('Client connected');
+        });
+        ws.on('message', (message) => {
+             wss.clients.forEach(client => {
+                if (client.readyState === ws.OPEN) {
+                    console.log(`Received: ${message}`);
+                    client.send(`Received: ${message}`);
+                }
+            });
             console.log(`Received: ${message}`);
-            client.send(`Received: ${message}`);
-        }
-    }
+            ws.send(`Received: ${message}`);
+        });
 
-
-
-
-
-
-
+        ws.on('close', () => {
+            console.log('Client disconnected');
+            //the user can leave the room and come back, but we need separate code if they decide to
+            //destroy the specific chatroom
+        });
+    });
 
 
 

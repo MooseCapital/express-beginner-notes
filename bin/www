@@ -7,10 +7,8 @@
 const app = require('../app');
 const debug = require('debug')('express-beginner-notes:server');
 const http = require('http');
-const Websocket = require('ws');
-const {WebSocketServer, WebSocket} = require("ws");
-const {websocketServerConfig} = require('../websockets/websocket');
 const z = require('zod');
+const {websocketServerConfig} = require('../websockets/websocket')
 //Get port from environment and store in Express.
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
@@ -20,6 +18,7 @@ app.set('port', port);
  */
 
 const server = http.createServer(app);
+
 /**
  * Listen on provided port, on all network interfaces.
  */
@@ -27,21 +26,10 @@ const server = http.createServer(app);
 server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
-const wss = new WebSocketServer({maxPayload: 1024 * 1024, server});
-const chatRooms = [
-    {
-        roomID: "f9e33783-0755-43c7-8dd2-8ba2f1226e51",
-        //now bind the methods from ws/client when the user initially joins
-        user1: {userID: "bob_secret_key"},
-        user2: {userID: "sara_secret_key",}
 
-    }
-
-];
-websocketServerConfig(wss, chatRooms);
+websocketServerConfig();
 
 server.on('upgrade', async (request, socket) => {
-    // const protocol = request.headers['sec-websocket-protocol'];
     console.log(`request:`, request.url)
     // console.log(`socket:`, socket)
     let url = request.url;
@@ -49,18 +37,12 @@ server.on('upgrade', async (request, socket) => {
         url = url.substring(1);
     }
     // console.log(`success:`, await z.string().uuid().safeParseAsync(url));
-    if (!(await z.string().uuid().safeParseAsync(url)).success) {
-        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-        socket.destroy();
-        return;
-    }
-    //check if room already exist in our array. if it is full destroy the connection
-    //if the room doesn't exist, and if the room has 0-1 users, then we want to connect
-    /* if (chatRooms.find(room => room.roomID === url && room.user1 && room.user2)) {
+    /* if (!(await z.string().uuid().safeParseAsync(url)).success) {
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
         socket.destroy();
         return;
     } */
+
 
 });
 
