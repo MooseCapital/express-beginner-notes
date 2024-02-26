@@ -33,6 +33,13 @@
                         client.send(`Received: ${message}`);
                     }
                 });
+
+      ws.on('message') -> this listens for messages event on a specific websocket instance, so for each user, so a function runs for only
+        -> a message received from that user, not all users, but NOW that function is calling wss.clients.forEach to send that users message
+        -> to all users, but we want to not use wss.clients, and only loop over our chatroom of users
+
+
+
     WSS.clients - contains references to all connected clients,
         -> the above has us looping over EVERY client and send one to all users, so if we want a chat with 2 specific users, we need
         -> to store those 2 clients in some array/map and only loop over them
@@ -41,7 +48,23 @@
         using: 'ws' inside wss.on('connection'),(ws,req) =>
             -> ws is the same as the client in the wss.clients.forEach(client => {}) loop, this means we store individual clients
             -> then search those clients specific room, and if it matches, we send messages to each other, not looping over ALL clients currently connected
+            if the user immediately disconnects because of failing validation, wss.on('connection') still runs, so our IMPORTANT code
+            -> should be in the ws.on('open') event, to ensure it is open and accepted
+            -> since it never opens, just closes the failing handshake, our 'client disconnected' still logs and ws.on('close') runs
+        * wss.clients.forEach loops through ALL connected clients, regardless of who sent the message which we want to avoid for speed.
 
+
+    bind() -  lets us take properties from one object and bind it as the arguments to another objects function call
+            -> also bind, can bind 'this' to a function call, so it's argument values are not lost in a callback
+                const person = {firstName:"John",
+                  display: function () {
+                    let x = document.getElementById("demo");
+                    x.innerHTML = this.firstName;
+                  }
+                }
+                setTimeout(person.display, 3000); //undefined -> unless we bind with person.display.bind(person)
+    1) we need to save certain things in the chatRooms array, for each user, such as the users readyState, send() method,
+        -> this is because
 
 
     rate limiting - even if we socket.destroy() the connection, someone can spam fake request they know will fail
@@ -89,19 +112,36 @@
 
         websockets make a single TCP connection, then once it's open, we send data back and forth, without opening/closing more conections
 
-     server 'upgrade' -
-     The server.on('upgrade') event will run BEFORE the websocket conneciton is established, it tells our server we want to
-        upgrade from http connection, to a websocket connection, this is the perfect place to validate users with auth, so we aren't
-        wasting resources on unauthenticated users
+=
+
+i thought it's listening on every connected client, but then we search with a header the user who made the request sent. now we have the chatroom of the user with the header, and send it only to the other user. like we could even use wss.client.forEach to match these up and don't send to every user with this, how is ws binded different
+
+In this example, the 'message' event is bound to the WebSocket instance (`ws`) for the currently connecting client. Therefore, the callback function will only be executed when a message is received from this client.
 
 
 
+ // Broadcast the message to all connected clients
+              wss.clients.forEach(client => {
+                 console.log(`client.readyState: ${client.readyState}`)
+                 console.log(`WebSocket.OPEN: ${WebSocket.OPEN}`)
+                 if (client.readyState === WebSocket.OPEN) {
+                     console.log(`Received: ${message}`);
+                     client.send(`Received: ${message}`);
+                 }
+             });
 
-
-
-
-
-
+//instead of storing ws for each client and binding send from that, we can search each client
+    and just send to clients that match the requested key, and send to users in the room with matching key
+wss.clients.forEach(client => {
+    //find which room contains the user with, request api-key
+    const currentRoom = chatRooms.find(room => room.user1.userID === req.headers['x-api-key'] || room.user2.userID === req.headers['x-api-key']);
+    //match the client api-key to the room, so we only send to the rooms users
+    client.forEach(client => {
+        if (client['api-key'] === currentRoom.user1.userID || client['api-key'] === currentRoom.user2.userID) {
+            console.log(`Received: ${message}`);
+            client.send(`Received: ${message}`);
+        }
+    }
 
 
 
