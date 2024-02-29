@@ -4,47 +4,55 @@
  * Module dependencies.
  */
 
-const app = require('../app');
+const {app} = require('../app');
 const debug = require('debug')('express-beginner-notes:server');
-const http = require('http');
+const {createServer} = require('http');
 const z = require('zod');
+require('dotenv').config();
 const {websocketServerConfig} = require('../websockets/websocket')
 //Get port from environment and store in Express.
 const port = normalizePort(process.env.PORT || '3000');
+const {Server} = require('socket.io')
 app.set('port', port);
+const httpServer = createServer(app);
 
-/**
- * Create HTTP server.
- */
+httpServer.on('error', onError);
+httpServer.on('listening', onListening);
+httpServer.listen(port);
 
-const server = http.createServer(app);
+const io = new Server(httpServer, {
+    cors: process.env.NODE_ENV === "production" ?
+    {origin: ["https://moosecapital.github.io",
+    "http://localhost:5173","http://localhost:4173",
+    "http://127.0.0.1:4173","http://127.0.0.1:5173"]} : {}
+})
 
-/**
- * Listen on provided port, on all network interfaces.
- */
+/* {
+    cors: {
+        origin: process.env.NODE_ENV === "production" ? ['https://moosecapital.github.io'] : ['*']
+    }
+}  */
 
-server.listen(port);
-server.on('error', onError);
-server.on('listening', onListening);
+websocketServerConfig(io);
 
-websocketServerConfig();
 
-server.on('upgrade', async (request, socket) => {
+/*
+
+httpServer.on('upgrade', async (request, socket) => {
     console.log(`request:`, request.url)
-    // console.log(`socket:`, socket)
+    console.log(`socket:`, socket)
     let url = request.url;
     if (url.startsWith('/')) {
         url = url.substring(1);
     }
-    // console.log(`success:`, await z.string().uuid().safeParseAsync(url));
-    /* if (!(await z.string().uuid().safeParseAsync(url)).success) {
+    console.log(`success:`, await z.string().uuid().safeParseAsync(url));
+    /!* if (!(await z.string().uuid().safeParseAsync(url)).success) {
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
         socket.destroy();
         return;
-    } */
-
-
+    } *!/
 });
+*/
 
 /**
  * Normalize a port into a number, string, or false.
@@ -99,7 +107,7 @@ function onError(error) {
  */
 
 function onListening() {
-    const addr = server.address();
+    const addr = httpServer.address();
     const bind = typeof addr === 'string'
         ? 'pipe ' + addr
         : 'port ' + addr.port;

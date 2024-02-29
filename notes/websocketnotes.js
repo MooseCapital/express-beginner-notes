@@ -111,7 +111,7 @@
             -> could have a user connected to one ws process, and another user in another, where we want them in the same room to chat to each-other
             -> this is called websocket 'stickiness' we need a horizontal scaling solution, so users in different threads can communicate
             -> socket.io will do this and let us use something like redis to store the communication across all rooms, and direct them where we need
-
+                https://socket.io/docs/v4/server-options/
 
         Audio/Video - when data is not sent as text or strings, like our messages chat app, it's sent as files that are binary data
             -> it would be inefficient to convert these files to text, so we need binary, then we convert that binary to a file
@@ -128,6 +128,72 @@
                         ws.send(`Received: ${message}`);
                     }
                 });
+
+        Socket.io -
+            our plugins do NOT connect like they did with ws, because it is a different protocol, hoppscotch has a special tab for it
+                -> there is a browser plugin as well, we must use. These plugins do not send messages right or emit them, so we can only use to listen
+                -> for messages from react client.
+                -> the piehost socket.io tester will send messages and receive, but we can't send data with it like the key and headers
+
+            headers - we can pass extra data from the client with headers,since we're not logging in , we won't be using cookies, http, jwt
+                -> we might want to pass in the users public key or create some jwt/cookie from this to identify them https://socket.io/docs/v3/client-initialization/#extraheaders
+                    {
+                      "extraHeaders": {
+                        "public-key": "1234abc"
+                      }
+                    }
+
+            client - install socket.io on our react client or js https://socket.io/docs/v4/client-installation/#from-npm
+            import { io } from "socket.io-client";
+            -> we can just use io() if the server is the same as the client domain
+            const socket = io("wss://server-domain.com");
+
+            emit - on client & server we emit an event, which means to start or send it, like socket.emit("message", "hello")
+            on - client & server can listen for events, and decide what to do, for broadcasting data like business use cases
+                -> Even in our chat app, we will emit & listen for 'message' because we want to get messages from the other user
+                -> and send our messages to the other user,
+                -> if this isn't a chat app, we might listen for something else like a broadcast from the server, and the user never emits that
+
+            ID - do NOT use the id for anything important,this changes each time we connect, so to identify the user we will use
+                -> a session id in a cookie, localstorage, or our secure E2EE might send the public key as identification
+                    io.on("connection", (socket) => {
+                      console.log(socket.id); // x8WIv7-mJelg7on_ALbx
+                    });
+
+            Activity detection - we can see when the other user is typing before they send the message
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -158,7 +224,7 @@ wss.on('connection', (ws, req) => {
         });
     });
 
-
+socket.io -
 
 
 

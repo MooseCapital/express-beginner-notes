@@ -25,16 +25,12 @@ console.log('cpu threads:' + process.env.UV_THREADPOOL_SIZE)
 
 
 //cors settings
-const corsOptions = {
-    origin: ['http://localhost:5173', 'http://localhost:4173', 'https://landonjolly.com', 'https://portfolio.landonjolly.com', 'https://personal.panel.landonjolly.com',
-        'https://moosecapital.github.io/groceries-app-crud', 'https://moosecapital.github.io'
-    ],
-    optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
-}
+const corsOptions = process.env.NODE_ENV === "production" ? {origin:['https://moosecapital.github.io'],optionsSuccessStatus:200} :
+{origin:['http://localhost:5173', 'http://localhost:4173'],optionsSuccessStatus:200};
 
 //middleware order
 app.set('trust proxy', 1); // set # of proxies in front of app
-app.use(memoryLimiter) //rate limiter to use on all routes
+app.use(mainLimiter) //rate limiter to use on all routes
 app.use(helmet())   //helmet for security
 app.use(compression())//compress all responses
 
@@ -103,5 +99,5 @@ app.use(function (err, req, res, next) {
     res.status(err.status || 500).json({error: err.message});
 });
 
-module.exports = app;
+module.exports = {app};
 

@@ -97,6 +97,7 @@ const redisLimiter = async (req, res, next) => {
     }
 } */
 //---memory limiter rate-limiter-flexible
+/*
 
 const memoryLimiterOptions = new RateLimiterMemory({
     points: 20, // number of request
@@ -161,6 +162,7 @@ const clusterLimiter = async (req, res, next) => {
         }
     }
 }
+*/
 
 // default main limiter
 const mainLimiter = rateLimit({
@@ -173,4 +175,4 @@ const mainLimiter = rateLimit({
     },
     skipFailedRequests: false,
 });
-module.exports = {mainLimiter,memoryLimiter,clusterLimiter}
+module.exports = {mainLimiter}
