@@ -161,11 +161,28 @@
                     });
 
             Activity detection - we can see when the other user is typing before they send the message
+                -> this involves listening for when the user is typing, like onChange or onKeyPress
+                -> then we can emit 'activity' every time key is pressed or set a Timeout so we emit eveyr x seconds to save server resources
+
+
+           Client & server API - https://socket.io/docs/v4/server-api/
+                -> we have many different methods to learn from the api, we will show what we have used for the project so far
+
+           Server -
+             socket.emit - emits event only to the user that sent it, 1 only
+                    -> socket.emit('message', 'welcome to the chat app) - sends a message
+             socket.broadcast.emit - emits event to all users except the one that sent it
+             io.emit - emit event to ALL connected users,
+                    -> io.emit('message', 'welcome to the chat app)
+
+            -> on connection, we might want a different event to us with socket.emit()
+                    -> and a different event to other uses but us with socket.broadcast.emit()
+                    -> instead of a message, it will be something to show a green dot, vs grey when inactive
 
 
 
-
-
+            Client -
+                io vs Manager - https://github.com/socketio/socket.io-client/issues/1214
 
 
 
